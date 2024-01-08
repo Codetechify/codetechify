@@ -1,0 +1,21 @@
+name: Move Feature Issue to Backlog
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  move-to-backlog:
+    runs-on: ubuntu-latest
+    if: github.event.label.name == 'feature'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Move issue to backlog
+        run: python move_issue_to_backlog.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          PROJECT_BOARD_ID: <your-project-board-id>
+          COLUMN_ID: <your-backlog-column-id>
