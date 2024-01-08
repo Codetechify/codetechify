@@ -58,7 +58,7 @@ async function fetchProjectInfo(): Promise<GraphQLResponse> {
 	return response.json() as Promise<GraphQLResponse>;
 }
 
-async function moveIssueToBacklog(projectId: string, columnId: string) {
+async function moveIssueToBacklog(columnId: string) {
 	const url = `https://api.github.com/projects/columns/${columnId}/cards`;
 
 	const body = {
@@ -95,6 +95,6 @@ fetchProjectInfo()
 		if (!backlogColumn) {
 			throw new Error('Backlog column not found');
 		}
-		return moveIssueToBacklog(projectInfo.id, backlogColumn.id);
+		return moveIssueToBacklog(backlogColumn.id);
 	})
 	.catch(error => console.error('Error:', error));
