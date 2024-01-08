@@ -17,14 +17,14 @@ jobs:
         with:
           node-version: '16'
 
-      - name: Install dependencies in .github/utils
+      - name: Install dependencies in utils
         run: |
-          cd .github/utils
+          cd utils
           npm install
 
       - name: Run TypeScript Script
         run: |
-          cd .github/utils
+          cd utils
           npx ts-node moveIssueToBacklog.ts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
