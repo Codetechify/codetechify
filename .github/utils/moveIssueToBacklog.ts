@@ -21,7 +21,7 @@ interface GraphQLResponse {
 }
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const ISSUE_NUMBER = process.env.ISSUE_NUMBER; // Get issue number from environment variable
+const ISSUE_NUMBER = process.env.ISSUE_NUMBER!; // Get issue number from environment variable
 const ORG_NAME = 'Codetechify'; // Replace with your organization's name
 const PROJECT_NUMBER = 2; // Replace with your project number
 
@@ -59,8 +59,28 @@ async function fetchProjectInfo(): Promise<GraphQLResponse> {
 }
 
 async function moveIssueToBacklog(projectId: string, columnId: string) {
-	// Add your logic here to move the issue to the backlog column
-	// Use GitHub's REST API to update the project card
+	const url = `https://api.github.com/projects/columns/${columnId}/cards`;
+
+	const body = {
+		content_id: parseInt(ISSUE_NUMBER, 10),
+		content_type: 'Issue',
+	};
+
+	const response = await fetch(url, {
+		method: 'POST',
+		headers: {
+			Authorization: `Bearer ${GITHUB_TOKEN}`,
+			'Content-Type': 'application/json',
+			Accept: 'application/vnd.github.v3+json',
+		},
+		body: JSON.stringify(body),
+	});
+
+	if (!response.ok) {
+		throw new Error(`HTTP error! Status: ${response.status}`);
+	}
+
+	return response.json();
 }
 
 fetchProjectInfo()
@@ -68,7 +88,7 @@ fetchProjectInfo()
 		const projectInfo = data.data.organization.project;
 		const backlogColumn = projectInfo.columns.nodes.find(
 			column => column.name === 'Backlog',
-		); // Assuming the column name is 'Backlog'
+		);
 		if (backlogColumn) {
 			return moveIssueToBacklog(projectInfo.id, backlogColumn.id);
 		} else {
