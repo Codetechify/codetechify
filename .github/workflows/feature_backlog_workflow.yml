@@ -1,21 +1,27 @@
-name: Move Feature Issue to Backlog
+name: Issue Automation Workflow
 
 on:
   issues:
     types: [labeled]
 
 jobs:
-  move-to-backlog:
+  issue-automation:
     runs-on: ubuntu-latest
     if: github.event.label.name == 'feature'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Move issue to backlog
-        run: python move_issue_to_backlog.py
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run TypeScript Script to Automate Issue Management
+        run: npx ts-node utils/moveIssueToBacklog.ts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-          PROJECT_BOARD_ID: <your-project-board-id>
-          COLUMN_ID: <your-backlog-column-id>
