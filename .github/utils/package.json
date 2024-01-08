@@ -2,6 +2,7 @@
 	"name": "utils",
 	"version": "1.0.0",
 	"dependencies": {
-		"node-fetch": "^3.3.2"
+		"node-fetch": "^3.3.2",
+		"typescript": "^5.3.3"
 	}
 }
