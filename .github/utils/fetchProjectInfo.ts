@@ -2,7 +2,7 @@ import fetch from 'node-fetch';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const ORG_NAME = 'Codetechify'; // Replace with your organization's name
-const PROJECT_NUMBER = your - project - number; // Replace with your project number
+const PROJECT_NUMBER = 2; // Replace with your project number
 
 const query = `
 {
