@@ -19,12 +19,12 @@ jobs:
 
       - name: Install dependencies in utils
         run: |
-          cd ../utils
+          cd .github/utils
           npm install
 
       - name: Run TypeScript Script
         run: |
-          cd ../utils
+          cd .githubs/utils
           npx ts-node moveIssueToBacklog.ts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
