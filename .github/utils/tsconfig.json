@@ -1,7 +1,7 @@
 {
 	"compilerOptions": {
 		"target": "ESNext",
-		"module": "NodeNext",
+		"module": "ESNext",
 		"lib": ["esnext", "dom"],
 		"allowJs": true,
 		"checkJs": true,
@@ -12,7 +12,7 @@
 		"esModuleInterop": true,
 		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,
-		"moduleResolution": "NodeNext"
+		"moduleResolution": "Node"
 	},
 	"include": ["**/*.ts"],
 	"exclude": ["node_modules"]
