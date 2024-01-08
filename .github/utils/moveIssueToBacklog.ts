@@ -9,6 +9,12 @@ interface ProjectColumnsResponse {
 	data: ProjectColumn[];
 }
 
+interface Issue {
+	id: number;
+	title: string;
+	// Add other necessary properties of an Issue here
+}
+
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const PROJECT_ID = 2; // Replace with the actual ID of the project
 
