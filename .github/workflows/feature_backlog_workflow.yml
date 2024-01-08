@@ -25,7 +25,7 @@ jobs:
       - name: Run TypeScript Script
         run: |
           cd .github/utils
-          npm ts-node moveIssueToBacklog.ts
+          npx ts-node moveIssueToBacklog.ts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
