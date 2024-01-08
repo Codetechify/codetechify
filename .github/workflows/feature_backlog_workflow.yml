@@ -20,16 +20,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run TypeScript Script to Fetch Project Info
-        run: npx ts-node utils/fetchProjectInfo.ts
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Move issue to feature backlog
-        run: python path/to/move_issue_to_backlog.py
+      - name: Run TypeScript Script to Automate Issue Management
+        run: npx ts-node utils/moveIssueToBacklog.ts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-          # The PROJECT_BOARD_ID and COLUMN_ID should be set dynamically based on the output of the TypeScript script
-          PROJECT_BOARD_ID: ${{ steps.project-info.outputs.project_board_id }}
-          COLUMN_ID: ${{ steps.project-info.outputs.column_id }}
