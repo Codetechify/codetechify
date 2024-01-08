@@ -22,10 +22,16 @@ jobs:
           cd .github/utils
           npm install
 
-      - name: Run TypeScript Script
+          - name: Compile TypeScript
+          run: |
+            cd .github/utils
+            npx tsc moveIssueToBacklog.ts
+
+      - name: Run Compiled JavaScript Script
         run: |
           cd .github/utils
-          npx ts-node moveIssueToBacklog.ts
+          node moveIssueToBacklog.js
+
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
