@@ -2,99 +2,102 @@ import fetch from 'node-fetch';
 
 interface ProjectColumn {
 	name: string;
-	id: string;
+	id: number;
 }
 
-interface Project {
-	id: string;
-	columns: {
-		nodes: ProjectColumn[];
-	};
+interface ProjectColumnsResponse {
+	data: ProjectColumn[];
 }
 
-interface GraphQLResponse {
-	data: {
-		organization: {
-			project: Project;
-		};
-	};
+interface Issue {
+	id: number;
+	// Add other issue properties as needed
+}
+
+interface IssueResponse {
+	data: Issue;
 }
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const ISSUE_NUMBER = process.env.ISSUE_NUMBER!; // Ensure ISSUE_NUMBER is defined
-const ORG_NAME = 'Codetechify'; // Replace with your organization's name
-const PROJECT_NUMBER = 2; // Replace with your project number
+const ISSUE_NUMBER = process.env.ISSUE_NUMBER!;
+const ORG_NAME = 'Codetechify';
+const PROJECT_ID = 2; // Replace with the actual ID of the project
 
-const query = `
-{
-  organization(login: "${ORG_NAME}") {
-    project(number: ${PROJECT_NUMBER}) {
-      id
-      columns(first: 10) {
-        nodes {
-          name
-          id
-        }
-      }
-    }
-  }
-}
-`;
+async function fetchProjectColumns(
+	projectId: number,
+): Promise<ProjectColumn[]> {
+	const url = `https://api.github.com/projects/${projectId}/columns`;
 
-async function fetchProjectInfo(): Promise<GraphQLResponse> {
-	const response = await fetch('https://api.github.com/graphql', {
-		method: 'POST',
+	const response = await fetch(url, {
+		method: 'GET',
 		headers: {
 			Authorization: `Bearer ${GITHUB_TOKEN}`,
-			'Content-Type': 'application/json',
+			Accept: 'application/vnd.github.v3+json',
 		},
-		body: JSON.stringify({ query }),
 	});
 
 	if (!response.ok) {
 		throw new Error(`HTTP error! Status: ${response.status}`);
 	}
 
-	return response.json() as Promise<GraphQLResponse>;
+	const columnsResponse = (await response.json()) as ProjectColumnsResponse;
+	return columnsResponse.data;
 }
 
-async function moveIssueToBacklog(columnId: string) {
-	const url = `https://api.github.com/projects/columns/${columnId}/cards`;
+async function moveIssueToColumn(
+	issueNumber: number,
+	columnId: number,
+): Promise<void> {
+	const issueUrl = `https://api.github.com/repos/${ORG_NAME}/issues/${issueNumber}`;
+	const columnUrl = `https://api.github.com/projects/columns/cards/${columnId}/moves`;
 
-	const body = {
-		content_id: parseInt(ISSUE_NUMBER, 10),
-		content_type: 'Issue',
-	};
+	const issueResponse = await fetch(issueUrl, {
+		method: 'GET',
+		headers: {
+			Authorization: `Bearer ${GITHUB_TOKEN}`,
+			Accept: 'application/vnd.github.v3+json',
+		},
+	});
 
-	const response = await fetch(url, {
+	if (!issueResponse.ok) {
+		throw new Error(
+			`HTTP error getting issue! Status: ${issueResponse.status}`,
+		);
+	}
+
+	const issue = (await issueResponse.json()) as IssueResponse;
+	const contentId = issue.data.id;
+
+	const response = await fetch(columnUrl, {
 		method: 'POST',
 		headers: {
 			Authorization: `Bearer ${GITHUB_TOKEN}`,
 			'Content-Type': 'application/json',
 			Accept: 'application/vnd.github.v3+json',
 		},
-		body: JSON.stringify(body),
+		body: JSON.stringify({
+			content_id: contentId,
+			content_type: 'Issue',
+		}),
 	});
 
 	if (!response.ok) {
 		throw new Error(`HTTP error! Status: ${response.status}`);
 	}
-
-	return response.json();
 }
 
-fetchProjectInfo()
-	.then(data => {
-		const projectInfo = data.data.organization.project;
-		if (!projectInfo || !projectInfo.columns) {
-			throw new Error('Project or columns data is missing');
-		}
-		const backlogColumn = projectInfo.columns.nodes.find(
-			column => column.name === 'Backlog',
-		);
+(async () => {
+	try {
+		const columns = await fetchProjectColumns(PROJECT_ID);
+		const backlogColumn = columns.find(column => column.name === 'Backlog');
+
 		if (!backlogColumn) {
 			throw new Error('Backlog column not found');
 		}
-		return moveIssueToBacklog(backlogColumn.id);
-	})
-	.catch(error => console.error('Error:', error));
+
+		await moveIssueToColumn(parseInt(ISSUE_NUMBER), backlogColumn.id);
+		console.log(`Issue ${ISSUE_NUMBER} moved to backlog column`);
+	} catch (error) {
+		console.error('Error:', error);
+	}
+})();
