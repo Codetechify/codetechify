@@ -16,12 +16,15 @@ jobs:
         uses: actions/setup-node@v2
         with:
           node-version: '14'
+          cache: 'pnpm' # Enable caching for pnpm
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install dependencies in .github/utils
+        run: |
+          cd .github/utils
+          pnpm install
 
-      - name: Run TypeScript Script to Automate Issue Management
-        run: npx ts-node utils/moveIssueToBacklog.ts
+      - name: Run TypeScript Script
+        run: npx ts-node .github/utils/moveIssueToBacklog.ts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
