@@ -19,7 +19,7 @@ jobs:
 
       - name: Install dependencies in utils
         run: |
-          cd utils
+          cd ../utils
           npm install
 
       - name: Run TypeScript Script
