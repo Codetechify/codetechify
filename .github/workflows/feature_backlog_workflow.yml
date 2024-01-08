@@ -14,5 +14,5 @@ jobs:
       - name: Call GitHub API
         run: |
           curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-                   -H "Accept: application/vnd.github.v3+json" \
-                   "https://api.github.com/some/endpoint"
+               -H "Accept: application/vnd.github.v3+json" \
+               "https://api.github.com/repos/Codetechify/codetechify-repo/issues/1"
