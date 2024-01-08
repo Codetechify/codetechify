@@ -23,7 +23,7 @@ jobs:
           npm install
 
       - name: Run TypeScript Script
-        run: npx ts-node .github/utils/moveIssueToBacklog.ts
+        run: npx ts-node --project .github/utils/tsconfig.json .github/utils/moveIssueToBacklog.ts
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
