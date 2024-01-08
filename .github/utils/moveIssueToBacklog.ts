@@ -21,7 +21,7 @@ interface GraphQLResponse {
 }
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const ISSUE_NUMBER = process.env.ISSUE_NUMBER!; // Get issue number from environment variable
+const ISSUE_NUMBER = process.env.ISSUE_NUMBER!; // Ensure ISSUE_NUMBER is defined
 const ORG_NAME = 'Codetechify'; // Replace with your organization's name
 const PROJECT_NUMBER = 2; // Replace with your project number
 
@@ -86,13 +86,15 @@ async function moveIssueToBacklog(projectId: string, columnId: string) {
 fetchProjectInfo()
 	.then(data => {
 		const projectInfo = data.data.organization.project;
+		if (!projectInfo || !projectInfo.columns) {
+			throw new Error('Project or columns data is missing');
+		}
 		const backlogColumn = projectInfo.columns.nodes.find(
 			column => column.name === 'Backlog',
 		);
-		if (backlogColumn) {
-			return moveIssueToBacklog(projectInfo.id, backlogColumn.id);
-		} else {
+		if (!backlogColumn) {
 			throw new Error('Backlog column not found');
 		}
+		return moveIssueToBacklog(projectInfo.id, backlogColumn.id);
 	})
 	.catch(error => console.error('Error:', error));
