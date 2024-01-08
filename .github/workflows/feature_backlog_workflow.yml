@@ -25,7 +25,7 @@ jobs:
       - name: Compile TypeScript
         run: |
           cd .github/utils
-          npx tsc
+          npx tsc && mv dist/moveIssueToBacklog.js dist/moveIssueToBacklog.mjs
 
       - name: List Compiled Files
         run: |
