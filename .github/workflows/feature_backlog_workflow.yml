@@ -27,6 +27,10 @@ jobs:
           cd .github/utils
           npx tsc
 
+      - name: List Compiled Files
+        run: |
+          ls -la .github/utils/dist
+
       - name: Run Compiled JavaScript Script
         run: |
           cd .github/utils/dist
