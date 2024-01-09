@@ -5,16 +5,37 @@ on:
     types: [labeled]
 
 jobs:
-  my_job:
-    if: github.event.label.name == 'feature'
+  process_issue:
+    if: github.event.label.name == 'feature' && github.event.action == 'labeled'
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Call GitHub API
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
         run: |
-          ISSUE_NUMBER=${{ github.event.issue.number }}
-          curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-               -H "Accept: application/vnd.github.v3+json" \
-               "https://api.github.com/repos/Codetechify/codetechify-repo/issues/$ISSUE_NUMBER"
+          cd .github/utils # Assuming your TypeScript file is located here
+          npm install
+
+      - name: Compile TypeScript
+        run: |
+          cd .github/utils
+          npx tsc && mv dist/moveIssueToBacklog.js dist/moveIssueToBacklog.mjs
+
+      - name: List Compiled Files
+        run: |
+          ls -la .github/utils/dist
+
+      - name: Run Compiled JavaScript Script
+        run: |
+          cd .github/utils/dist
+          node moveIssueToBacklog.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_ID: ${{ github.event.issue.number }}
