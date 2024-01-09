@@ -1,85 +1,49 @@
+import * as core from '@actions/core';
+import * as github from '@actions/github';
 import { Octokit } from '@octokit/rest';
-import { graphql } from '@octokit/graphql';
+import { RestEndpointMethodTypes } from '@octokit/plugin-rest-endpoint-methods';
 
-const ACCESS_TOKEN = process.env.CODETECHIFY_ACCESS_TOKEN;
-const REPO_NAME = process.env.REPO_NAME || 'codetechify-repo';
-const ORG_NAME = process.env.ORG_NAME || 'Codetechify';
-const PROJECT_ID = process.env.PROJECT_ID || '2';
-const COLUMN_ID = 'YOUR_COLUMN_ID'; // Replace with actual Column ID for 'Backlog'
-
-if (!ACCESS_TOKEN) {
-	console.error('Access token not found');
-	process.exit(1);
+// Define types or interfaces for your custom data structures
+interface MyCustomData {
+	// Define your custom fields here
 }
 
-const octokit = new Octokit({ auth: ACCESS_TOKEN });
-const graphqlWithAuth = graphql.defaults({
-	headers: {
-		authorization: `token ${ACCESS_TOKEN}`,
-	},
-});
+// Type definitions for API responses
+type GetProjectResponseType =
+	RestEndpointMethodTypes['projects']['get']['response'];
 
-async function getCardId(
-	issueNumber: number,
-	columnId: string,
-): Promise<string | null> {
-	const query = `
-        query ($columnId: ID!) {
-            node(id: $columnId) {
-                ... on ProjectColumn {
-                    cards(first: 100) {
-                        nodes {
-                            id
-                            content {
-                                ... on Issue {
-                                    number
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    `;
+// Ensure your environmental variables are set
+const token = process.env.CODETECHIFY_ACCESS_TOKEN as string;
+const repoName = process.env.REPO_NAME as string;
+const orgName = process.env.ORG_NAME as string;
+const projectId = parseInt(process.env.PROJECT_ID as string);
 
-	const response = await graphqlWithAuth(query, { columnId });
-	const cards = response.node.cards.nodes;
-	const issueCard = cards.find(
-		(card: any) => card.content?.number === issueNumber,
-	);
-	return issueCard ? issueCard.id : null;
-}
+// Create a new Octokit instance
+const octokit = new Octokit({ auth: token });
 
-async function main() {
+async function getProject(projectId: number): Promise<GetProjectResponseType> {
 	try {
-		const issueNumber = context.issue.number; // Adjust this according to your context
-
-		// Add label and assign to project board as previously described
-		// ...
-
-		// Retrieve the card ID for the issue
-		const cardId = await getCardId(issueNumber, COLUMN_ID);
-		if (!cardId) {
-			console.error('Card ID not found for issue:', issueNumber);
-			return;
-		}
-
-		// Move issue to 'Backlog' column
-		await graphqlWithAuth(
-			`
-            mutation ($cardId: ID!, $columnId: ID!) {
-                moveProjectCard(input: {cardId: $cardId, columnId: $columnId}) {
-                    clientMutationId
-                }
-            }`,
-			{
-				cardId: cardId,
-				columnId: COLUMN_ID,
-			},
-		);
+		const response = await octokit.rest.projects.get({
+			project_id: projectId,
+		});
+		return response;
 	} catch (error) {
-		console.error('Error processing issue:', error);
+		if (error instanceof Error) {
+			core.setFailed(error.message);
+		} else {
+			core.setFailed('Unknown error occurred');
+		}
+		throw error; // Rethrow after handling
 	}
 }
 
-main();
+async function run() {
+	try {
+		const project = await getProject(projectId);
+		// Additional logic...
+	} catch (error) {
+		core.setFailed(`Failed to run the script: ${error}`);
+	}
+}
+
+run();
