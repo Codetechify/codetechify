@@ -1,6 +1,7 @@
 {
 	"name": "utils",
 	"version": "1.0.0",
+	"type": "module",
 	"dependencies": {
 		"@actions/github": "^6.0.0",
 		"@octokit/rest": "^20.0.2"
