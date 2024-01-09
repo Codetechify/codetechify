@@ -1,89 +1,36 @@
-import fetch from 'node-fetch';
+import { Octokit } from '@octokit/rest';
 
-interface ProjectColumn {
-	name: string;
-	id: number;
-}
+async function moveIssueToBacklog() {
+	const token = process.env.CODETECHIFY_REPO_TOKEN;
+	const issueId = process.env.ISSUE_ID;
 
-interface ProjectColumnsResponse {
-	data: ProjectColumn[];
-}
-
-interface Issue {
-	id: number;
-	title: string;
-	// You can add other necessary properties of an Issue here
-}
-
-const CODETECHIFY_REPO_TOKEN = process.env.CODETECHIFY_REPO_TOKEN;
-const PROJECT_ID = 2; // Replace with your actual project ID
-const ISSUE_ID = process.env.ISSUE_ID ? parseInt(process.env.ISSUE_ID) : null;
-
-async function fetchProjectColumns(
-	projectId: number,
-): Promise<ProjectColumn[]> {
-	const url = `https://api.github.com/projects/${projectId}/columns`;
-
-	const response = await fetch(url, {
-		method: 'GET',
-		headers: {
-			Authorization: `Bearer ${CODETECHIFY_REPO_TOKEN}`,
-			Accept: 'application/vnd.github.v3+json',
-		},
-	});
-
-	if (!response.ok) {
-		console.error(`HTTP error! Status: ${response.status}`);
-		console.error(`Response Body: ${await response.text()}`);
-		throw new Error(`HTTP error! Status: ${response.status}`);
+	if (!token || !issueId) {
+		console.error(
+			'Missing environment variables: CODETECHIFY_REPO_TOKEN or ISSUE_ID',
+		);
+		process.exit(1);
 	}
 
-	const columnsResponse = (await response.json()) as ProjectColumnsResponse;
-	return columnsResponse.data;
-}
+	const octokit = new Octokit({ auth: token });
 
-async function checkIssue(issueId: number) {
-	const url = `https://api.github.com/repos/Codetechify/codetechify-repo/issues/${issueId}`;
-
-	const response = await fetch(url, {
-		headers: {
-			Authorization: `Bearer ${CODETECHIFY_REPO_TOKEN}`,
-			Accept: 'application/vnd.github.v3+json',
-		},
-	});
-
-	if (!response.ok) {
-		console.error(`HTTP error! Status: ${response.status}`);
-		return null;
-	}
-
-	const issue = (await response.json()) as Issue;
-	return issue;
-}
-
-(async () => {
 	try {
-		if (ISSUE_ID) {
-			const issue = await checkIssue(ISSUE_ID);
-			if (issue) {
-				console.log(`Issue found: ${issue.title}`);
-			} else {
-				console.log(`No issue found with ID: ${ISSUE_ID}`);
-			}
-		} else {
-			console.log('No ISSUE_ID provided');
-		}
+		// Replace with your repository's owner and name
+		const owner = 'YourGitHubUsernameOrOrgName';
+		const repo = 'YourRepoName';
 
-		const columns = await fetchProjectColumns(PROJECT_ID);
-		console.log('Project Columns:', JSON.stringify(columns, null, 2));
+		// Fetch the issue
+		const issue = await octokit.rest.issues.get({
+			owner,
+			repo,
+			issue_number: parseInt(issueId),
+		});
 
-		const backlogColumn = columns.find(column => column.name === 'Backlog');
-		if (backlogColumn) {
-			console.log(`Backlog column found with ID: ${backlogColumn.id}`);
-		} else {
-			console.log('Backlog column not found');
-		}
+		console.log(`Issue found: ${issue.data.title}`);
+
+		// Add additional logic here to move the issue to the backlog
 	} catch (error) {
-		console.error('Error:', error);
+		console.error(`Error processing issue: ${error}`);
 	}
-})();
+}
+
+moveIssueToBacklog();
