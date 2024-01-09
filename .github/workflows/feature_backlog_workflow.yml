@@ -18,14 +18,20 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Change directory to .github/utils
+        run: cd .github/utils
+
       - name: Install dependencies
         run: npm install
+        working-directory: .github/utils
 
       - name: Compile TypeScript
         run: npx tsc
+        working-directory: .github/utils
 
       - name: Rename JS to MJS
         run: mv dist/moveIssueToBacklog.js dist/moveIssueToBacklog.mjs
+        working-directory: .github/utils
 
       - name: Run script
         run: npm start
@@ -34,3 +40,4 @@ jobs:
           REPO_NAME: 'codetechify-repo'
           ORG_NAME: 'Codetechify'
           PROJECT_ID: '2'
+        working-directory: .github/utils
