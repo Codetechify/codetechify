@@ -1,21 +1,28 @@
 import fetch from 'node-fetch';
 
+interface ProjectColumn {
+	name: string;
+	id: number;
+}
+
+interface ProjectColumnsResponse {
+	data: ProjectColumn[];
+}
+
 interface Issue {
 	id: number;
 	title: string;
-	body: string; // This represents the description
+	// You can add other necessary properties of an Issue here
 }
 
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN as string; // Asserting GITHUB_TOKEN as string
-const PROJECT_ID = 2; // Replace with the actual ID of the project
-const ISSUE_ID = parseInt(process.env.ISSUE_ID || '', 10); // Fallback to an empty string if ISSUE_ID is not set
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const PROJECT_ID = 2; // Replace with your actual project ID
+const ISSUE_ID = process.env.ISSUE_ID ? parseInt(process.env.ISSUE_ID) : null;
 
-async function fetchIssue(issueId: number): Promise<Issue> {
-	if (!Number.isInteger(issueId)) {
-		throw new Error('Issue ID is not provided or not a number');
-	}
-
-	const url = `https://api.github.com/repos/Codetechify/codetechify-repo/issues/${issueId}`;
+async function fetchProjectColumns(
+	projectId: number,
+): Promise<ProjectColumn[]> {
+	const url = `https://api.github.com/projects/${projectId}/columns`;
 
 	const response = await fetch(url, {
 		method: 'GET',
@@ -31,14 +38,51 @@ async function fetchIssue(issueId: number): Promise<Issue> {
 		throw new Error(`HTTP error! Status: ${response.status}`);
 	}
 
-	return response.json() as Promise<Issue>;
+	const columnsResponse = (await response.json()) as ProjectColumnsResponse;
+	return columnsResponse.data;
+}
+
+async function checkIssue(issueId: number) {
+	const url = `https://api.github.com/repos/Codetechify/codetechify-repo/issues/${issueId}`;
+
+	const response = await fetch(url, {
+		headers: {
+			Authorization: `Bearer ${GITHUB_TOKEN}`,
+			Accept: 'application/vnd.github.v3+json',
+		},
+	});
+
+	if (!response.ok) {
+		console.error(`HTTP error! Status: ${response.status}`);
+		return null;
+	}
+
+	const issue = (await response.json()) as Issue;
+	return issue;
 }
 
 (async () => {
 	try {
-		const issue = await fetchIssue(ISSUE_ID);
-		console.log(`Issue Title: ${issue.title}`);
-		console.log(`Issue Description: ${issue.body}`);
+		if (ISSUE_ID) {
+			const issue = await checkIssue(ISSUE_ID);
+			if (issue) {
+				console.log(`Issue found: ${issue.title}`);
+			} else {
+				console.log(`No issue found with ID: ${ISSUE_ID}`);
+			}
+		} else {
+			console.log('No ISSUE_ID provided');
+		}
+
+		const columns = await fetchProjectColumns(PROJECT_ID);
+		console.log('Project Columns:', JSON.stringify(columns, null, 2));
+
+		const backlogColumn = columns.find(column => column.name === 'Backlog');
+		if (backlogColumn) {
+			console.log(`Backlog column found with ID: ${backlogColumn.id}`);
+		} else {
+			console.log('Backlog column not found');
+		}
 	} catch (error) {
 		console.error('Error:', error);
 	}
