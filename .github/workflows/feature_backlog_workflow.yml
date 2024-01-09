@@ -28,7 +28,7 @@ jobs:
           cd .github/utils
           npm install -D @types/node
 
-      - name: Install @types/node
+      - name: Install @octakit/types
         run: |
           cd .github/utils
           npm install -D @octokit/types
@@ -53,6 +53,6 @@ jobs:
           cd .github/utils/dist
           node moveIssueToBacklog.mjs
         env:
-          CODETECHIFY_REPO_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+          CODETECHIFY_ACCESS_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           ISSUE_ID: ${{ github.event.issue.number }}
           PROJECT_ID: ${{ secrets.PROJECT_ID }}
