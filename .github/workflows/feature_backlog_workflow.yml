@@ -53,6 +53,6 @@ jobs:
           cd .github/utils/dist
           node moveIssueToBacklog.mjs
         env:
-          CODETECHIFY_REPO_TOKEN: ${{ secrets.CODETECHIFY_REPO_TOKEN }}
+          CODETECHIFY_REPO_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           ISSUE_ID: ${{ github.event.issue.number }}
           PROJECT_ID: ${{ secrets.PROJECT_ID }}

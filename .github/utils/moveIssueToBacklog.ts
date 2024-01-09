@@ -6,7 +6,7 @@ type ListColumnsResponse =
 	Endpoints['GET /projects/{project_id}/columns']['response'];
 
 async function moveIssueToBacklog() {
-	const token = process.env.CODETECHIFY_REPO_TOKEN;
+	const token = process.env.CODETECHIFY_ACCESS_TOKEN;
 	const issueId = process.env.ISSUE_ID;
 	const projectId = process.env.PROJECT_ID; // Ensure this is set in your environment
 
