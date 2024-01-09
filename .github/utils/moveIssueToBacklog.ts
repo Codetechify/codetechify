@@ -1,21 +1,21 @@
 import fetch from 'node-fetch';
 
-interface ProjectColumn {
-	name: string;
+interface Issue {
 	id: number;
+	title: string;
+	body: string; // This represents the description
 }
 
-interface ProjectColumnsResponse {
-	data: ProjectColumn[];
-}
-
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN as string; // Asserting GITHUB_TOKEN as string
 const PROJECT_ID = 2; // Replace with the actual ID of the project
+const ISSUE_ID = parseInt(process.env.ISSUE_ID || '', 10); // Fallback to an empty string if ISSUE_ID is not set
 
-async function fetchProjectColumns(
-	projectId: number,
-): Promise<ProjectColumn[]> {
-	const url = `https://api.github.com/projects/${projectId}/columns`;
+async function fetchIssue(issueId: number): Promise<Issue> {
+	if (!Number.isInteger(issueId)) {
+		throw new Error('Issue ID is not provided or not a number');
+	}
+
+	const url = `https://api.github.com/repos/<owner>/<repo>/issues/${issueId}`;
 
 	const response = await fetch(url, {
 		method: 'GET',
@@ -27,46 +27,18 @@ async function fetchProjectColumns(
 
 	if (!response.ok) {
 		console.error(`HTTP error! Status: ${response.status}`);
+		console.error(`Response Body: ${await response.text()}`);
 		throw new Error(`HTTP error! Status: ${response.status}`);
 	}
 
-	const columnsResponse = (await response.json()) as ProjectColumnsResponse;
-	return columnsResponse.data;
-}
-
-async function moveIssueToBacklog(issueId: number, projectId: number) {
-	const columns = await fetchProjectColumns(projectId);
-	const backlogColumn = columns.find(column => column.name === 'Backlog');
-	if (!backlogColumn) {
-		throw new Error('Backlog column not found');
-	}
-
-	const cardUrl = `https://api.github.com/projects/columns/${backlogColumn.id}/cards`;
-
-	const response = await fetch(cardUrl, {
-		method: 'POST',
-		headers: {
-			Authorization: `Bearer ${GITHUB_TOKEN}`,
-			Accept: 'application/vnd.github.v3+json',
-		},
-		body: JSON.stringify({ content_id: issueId, content_type: 'Issue' }),
-	});
-
-	if (!response.ok) {
-		console.error(`HTTP error! Status: ${response.status}`);
-		throw new Error(`HTTP error! Status: ${response.status}`);
-	}
-
-	console.log('Issue moved to backlog');
+	return response.json() as Promise<Issue>;
 }
 
 (async () => {
 	try {
-		const issueId = parseInt(process.env.ISSUE_ID || '');
-		if (isNaN(issueId)) {
-			throw new Error('Invalid or missing ISSUE_ID environment variable');
-		}
-		await moveIssueToBacklog(issueId, PROJECT_ID);
+		const issue = await fetchIssue(ISSUE_ID);
+		console.log(`Issue Title: ${issue.title}`);
+		console.log(`Issue Description: ${issue.body}`);
 	} catch (error) {
 		console.error('Error:', error);
 	}
