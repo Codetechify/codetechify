@@ -1,42 +1,41 @@
-import * as core from '@actions/core';
-import { context, getOctokit } from '@actions/github';
+import { getOctokit } from '@actions/github';
 
 async function run() {
 	try {
-		// Retrieve the token and other inputs from the workflow
-		const token = core.getInput('CODETECHIFY_ACCESS_TOKEN', { required: true });
-		const issueId = parseInt(core.getInput('ISSUE_ID', { required: true }));
-		const projectId = parseInt(core.getInput('PROJECT_ID', { required: true }));
+		// Retrieve the token from environment variables
+		const token = process.env.CODETECHIFY_ACCESS_TOKEN;
+		if (!token) {
+			throw new Error('CODETECHIFY_ACCESS_TOKEN is not provided');
+		}
+
+		// Retrieve issue number from environment variables
+		const issueNumber = parseInt(process.env.ISSUE_ID, 10);
+		if (isNaN(issueNumber)) {
+			throw new Error('ISSUE_ID is not a valid number');
+		}
 
 		// Initialize Octokit with the provided token
 		const octokit = getOctokit(token);
 
-		// Example of using Octokit to retrieve issue details
-		// Adjust this part as per your logic
+		// Retrieve issue details
 		const { data: issue } = await octokit.rest.issues.get({
-			owner: context.repo.owner,
-			repo: context.repo.repo,
-			issue_number: issueId,
+			owner: process.env.GITHUB_REPOSITORY_OWNER,
+			repo: process.env.GITHUB_REPOSITORY,
+			issue_number: issueNumber,
 		});
 
-		console.log(`Issue found: ${issue.title}`);
+		// Check if the issue is labeled with 'feature'
+		const isFeature = issue.labels.some(label => label.name === 'feature');
 
-		// Your logic to decide whether to move the issue to the backlog
-		// For example, based on labels, status, etc.
-		// ...
-
-		// If conditions are met, move the issue to the backlog
-		// Adjust this part as per your logic
-		// ...
-	} catch (error) {
-		if (error instanceof Error) {
-			console.error(`Error processing issue: ${error.message}`);
-			if ('status' in error) {
-				console.error(`HTTP Status: ${error['status']}`);
-			}
+		if (isFeature) {
+			console.log(`Issue titled '${issue.title}' is labeled with 'feature'.`);
 		} else {
-			console.error(`Unexpected error: ${error}`);
+			console.log(
+				`Issue titled '${issue.title}' is not labeled with 'feature'.`,
+			);
 		}
+	} catch (error) {
+		console.error(`Error: ${error.message}`);
 	}
 }
 
