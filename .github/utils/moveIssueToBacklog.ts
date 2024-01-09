@@ -15,8 +15,8 @@ async function moveIssueToBacklog() {
 
 	try {
 		// Replace with your repository's owner and name
-		const owner = 'YourGitHubUsernameOrOrgName';
-		const repo = 'YourRepoName';
+		const owner = 'Codetechify';
+		const repo = 'codetechify-repo';
 
 		// Fetch the issue
 		const issue = await octokit.rest.issues.get({
