@@ -7,7 +7,7 @@ on:
 jobs:
   manage-backlog:
     runs-on: ubuntu-latest
-    if: github.event.issue.labels.*.name == 'feature'
+    if: github.event.label.name == 'feature' || (github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'feature'))
 
     steps:
       - name: Checkout code
