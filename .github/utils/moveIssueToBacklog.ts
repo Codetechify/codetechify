@@ -1,47 +1,49 @@
-import { getOctokit } from '@actions/github';
+import { Octokit } from '@octokit/rest';
+import fetch from 'node-fetch';
 
-async function run() {
+const ACCESS_TOKEN = process.env.CODETECHIFY_ACCESS_TOKEN;
+const REPO_NAME = 'codetechify-repo';
+const ORG_NAME = 'Codetechify';
+const PROJECT_ID = '2';
+
+if (!ACCESS_TOKEN) {
+	console.error('Access token not found');
+	process.exit(1);
+}
+
+const octokit = new Octokit({ auth: ACCESS_TOKEN });
+
+async function main() {
+	// Check project board
 	try {
-		const token = process.env.CODETECHIFY_ACCESS_TOKEN;
-		if (!token) {
-			throw new Error('CODETECHIFY_ACCESS_TOKEN is not provided');
-		}
+		const project = await octokit.projects.get({
+			project_id: parseInt(PROJECT_ID),
+		});
+		console.log('Project board exists:', project.data.name);
+	} catch (error) {
+		console.error('Project board check failed:', error);
+		return;
+	}
 
-		const issueNumberString = process.env.ISSUE_ID;
-		if (!issueNumberString) {
-			throw new Error('ISSUE_ID is not provided');
-		}
-		const issueNumber = parseInt(issueNumberString, 10);
-		if (isNaN(issueNumber)) {
-			throw new Error('ISSUE_ID is not a valid number');
-		}
-
-		const octokit = getOctokit(token);
-
-		const { data: issue } = await octokit.rest.issues.get({
-			owner: process.env.GITHUB_REPOSITORY_OWNER || '',
-			repo: process.env.GITHUB_REPOSITORY || '',
-			issue_number: issueNumber,
+	// Check for feature-labeled issues
+	try {
+		const issues = await octokit.issues.listForRepo({
+			owner: ORG_NAME,
+			repo: REPO_NAME,
+			labels: 'feature',
 		});
 
-		const isFeature = issue.labels.some(
-			(label: any) => typeof label === 'object' && label.name === 'feature',
-		);
+		if (issues.data.length === 0) {
+			console.log("No 'feature' labeled issues found.");
+			return;
+		}
 
-		if (isFeature) {
-			console.log(`Issue titled '${issue.title}' is labeled with 'feature'.`);
-		} else {
-			console.log(
-				`Issue titled '${issue.title}' is not labeled with 'feature'.`,
-			);
-		}
+		issues.data.forEach(issue => {
+			console.log('Issue Title:', issue.title);
+		});
 	} catch (error) {
-		if (typeof error === 'object' && error !== null && 'message' in error) {
-			console.error(`Error: ${(error as Error).message}`);
-		} else {
-			console.error('Unknown error occurred.');
-		}
+		console.error('Issue check failed:', error);
 	}
 }
 
-run();
+main();

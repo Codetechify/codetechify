@@ -1,16 +1,16 @@
-name: Issue Automation Workflow
+name: Feature Backlog Workflow
 
 on:
   issues:
-    types: [labeled]
+    types: [opened, labeled]
 
 jobs:
-  process_issue:
-    if: github.event.label.name == 'feature' && github.event.action == 'labeled'
+  manage-backlog:
     runs-on: ubuntu-latest
+    if: github.event.label.name == 'feature'
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v2
 
       - name: Set up Node.js
@@ -20,21 +20,17 @@ jobs:
 
       - name: Install dependencies
         run: npm install
-        working-directory: .github/utils
 
       - name: Compile TypeScript
-        run: npx tsc && mv dist/moveIssueToBacklog.js dist/moveIssueToBacklog.mjs
-        working-directory: .github/utils
+        run: npx tsc
 
-      - name: List Compiled Files
-        run: ls -la dist
-        working-directory: .github/utils
+      - name: Rename JS to MJS
+        run: mv dist/moveIssueToBacklog.js dist/moveIssueToBacklog.mjs
 
-      - name: Run Compiled JavaScript Script
-        run: node dist/moveIssueToBacklog.mjs
-        working-directory: .github/utils
+      - name: Run script
+        run: npm start
         env:
           CODETECHIFY_ACCESS_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
-          ISSUE_ID: ${{ github.event.issue.number }}
-          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+          REPO_NAME: 'codetechify-repo'
+          ORG_NAME: 'Codetechify'
+          PROJECT_ID: '2'

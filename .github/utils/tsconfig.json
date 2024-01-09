@@ -1,19 +1,13 @@
 {
 	"compilerOptions": {
-		"target": "ESNext",
-		"module": "ESNext",
-		"lib": ["esnext"],
-		"allowJs": true,
-		"checkJs": true,
-		"declaration": true,
+		"target": "esnext",
+		"module": "esnext",
+		"moduleResolution": "node",
 		"outDir": "./dist",
-		"rootDir": ".",
-		"strict": true,
 		"esModuleInterop": true,
-		"skipLibCheck": true,
-		"forceConsistentCasingInFileNames": true,
-		"moduleResolution": "Node"
+		"strict": true,
+		"forceConsistentCasingInFileNames": true
 	},
-	"include": ["**/*.ts"],
+	"include": ["./.github/utils/*.ts"],
 	"exclude": ["node_modules"]
 }
