@@ -55,3 +55,4 @@ jobs:
         env:
           CODETECHIFY_REPO_TOKEN: ${{ secrets.CODETECHIFY_REPO_TOKEN }}
           ISSUE_ID: ${{ github.event.issue.number }}
+          PROJECT_ID: ${{ secrets.PROJECT_ID }}
