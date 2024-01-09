@@ -19,39 +19,20 @@ jobs:
           node-version: '18'
 
       - name: Install dependencies
-        run: |
-          cd .github/utils
-          npm install
-
-      - name: Install @types/node
-        run: |
-          cd .github/utils
-          npm install -D @types/node
-
-      - name: Install @octakit/types
-        run: |
-          cd .github/utils
-          npm install -D @octokit/types
-
-      - name: Install octokit
-        run: |
-          cd .github/utils
-          npm install
-          npm install @octokit/rest
+        run: npm install
+        working-directory: .github/utils
 
       - name: Compile TypeScript
-        run: |
-          cd .github/utils
-          npx tsc && mv dist/moveIssueToBacklog.js dist/moveIssueToBacklog.mjs
+        run: npx tsc
+        working-directory: .github/utils
 
       - name: List Compiled Files
-        run: |
-          ls -la .github/utils/dist
+        run: ls -la dist
+        working-directory: .github/utils
 
       - name: Run Compiled JavaScript Script
-        run: |
-          cd .github/utils/dist
-          node moveIssueToBacklog.mjs
+        run: node dist/moveIssueToBacklog.mjs
+        working-directory: .github/utils
         env:
           CODETECHIFY_ACCESS_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           ISSUE_ID: ${{ github.event.issue.number }}
