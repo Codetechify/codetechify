@@ -1,4 +1,5 @@
 import { Octokit } from '@octokit/rest';
+import fetch from 'node-fetch';
 
 async function moveIssueToBacklog() {
 	const token = process.env.CODETECHIFY_REPO_TOKEN;
@@ -11,7 +12,12 @@ async function moveIssueToBacklog() {
 		process.exit(1);
 	}
 
-	const octokit = new Octokit({ auth: token });
+	const octokit = new Octokit({
+		auth: token,
+		request: {
+			fetch,
+		},
+	});
 
 	try {
 		// Replace with your repository's owner and name
