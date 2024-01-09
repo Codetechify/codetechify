@@ -15,7 +15,7 @@ async function fetchIssue(issueId: number): Promise<Issue> {
 		throw new Error('Issue ID is not provided or not a number');
 	}
 
-	const url = `https://api.github.com/repos/<owner>/<repo>/issues/${issueId}`;
+	const url = `https://api.github.com/repos/Codetechify/codetechify-repo/issues/${issueId}`;
 
 	const response = await fetch(url, {
 		method: 'GET',
