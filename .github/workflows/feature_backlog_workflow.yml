@@ -8,6 +8,7 @@ jobs:
   process_issue:
     if: github.event.label.name == 'feature' && github.event.action == 'labeled'
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -22,7 +23,7 @@ jobs:
         working-directory: .github/utils
 
       - name: Compile TypeScript
-        run: npx tsc
+        run: npx tsc && mv dist/moveIssueToBacklog.js dist/moveIssueToBacklog.mjs
         working-directory: .github/utils
 
       - name: List Compiled Files
@@ -30,10 +31,10 @@ jobs:
         working-directory: .github/utils
 
       - name: Run Compiled JavaScript Script
-        run: node dist/moveIssueToBacklog.js
+        run: node dist/moveIssueToBacklog.mjs
         working-directory: .github/utils
         env:
           CODETECHIFY_ACCESS_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           ISSUE_ID: ${{ github.event.issue.number }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
