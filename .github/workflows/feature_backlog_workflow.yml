@@ -28,6 +28,11 @@ jobs:
           cd .github/utils
           npm install -D @types/node
 
+      - name: Install @types/node
+        run: |
+          cd .github/utils
+          npm install -D @octokit/types
+
       - name: Install octokit
         run: |
           cd .github/utils
