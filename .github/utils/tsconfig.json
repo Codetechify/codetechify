@@ -8,6 +8,6 @@
 		"strict": true,
 		"forceConsistentCasingInFileNames": true
 	},
-	"include": ["./.github/utils/*.ts"],
+	"include": ["*.ts"],
 	"exclude": ["node_modules"]
 }
