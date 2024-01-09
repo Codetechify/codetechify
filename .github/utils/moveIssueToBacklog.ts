@@ -1,10 +1,11 @@
 import { Octokit } from '@octokit/rest';
-import fetch from 'node-fetch';
+import { graphql } from '@octokit/graphql';
 
 const ACCESS_TOKEN = process.env.CODETECHIFY_ACCESS_TOKEN;
-const REPO_NAME = 'codetechify-repo';
-const ORG_NAME = 'Codetechify';
-const PROJECT_ID = '2';
+const REPO_NAME = process.env.REPO_NAME || 'codetechify-repo';
+const ORG_NAME = process.env.ORG_NAME || 'Codetechify';
+const PROJECT_ID = process.env.PROJECT_ID || '2';
+const COLUMN_ID = 'YOUR_COLUMN_ID'; // Replace with actual Column ID for 'Backlog'
 
 if (!ACCESS_TOKEN) {
 	console.error('Access token not found');
@@ -12,37 +13,72 @@ if (!ACCESS_TOKEN) {
 }
 
 const octokit = new Octokit({ auth: ACCESS_TOKEN });
+const graphqlWithAuth = graphql.defaults({
+	headers: {
+		authorization: `token ${ACCESS_TOKEN}`,
+	},
+});
+
+async function getCardId(
+	issueNumber: number,
+	columnId: string,
+): Promise<string | null> {
+	const query = `
+        query ($columnId: ID!) {
+            node(id: $columnId) {
+                ... on ProjectColumn {
+                    cards(first: 100) {
+                        nodes {
+                            id
+                            content {
+                                ... on Issue {
+                                    number
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    `;
+
+	const response = await graphqlWithAuth(query, { columnId });
+	const cards = response.node.cards.nodes;
+	const issueCard = cards.find(
+		(card: any) => card.content?.number === issueNumber,
+	);
+	return issueCard ? issueCard.id : null;
+}
 
 async function main() {
-	// Check project board
 	try {
-		const project = await octokit.projects.get({
-			project_id: parseInt(PROJECT_ID),
-		});
-		console.log('Project board exists:', project.data.name);
-	} catch (error) {
-		console.error('Project board check failed:', error);
-		return;
-	}
+		const issueNumber = context.issue.number; // Adjust this according to your context
 
-	// Check for feature-labeled issues
-	try {
-		const issues = await octokit.issues.listForRepo({
-			owner: ORG_NAME,
-			repo: REPO_NAME,
-			labels: 'feature',
-		});
+		// Add label and assign to project board as previously described
+		// ...
 
-		if (issues.data.length === 0) {
-			console.log("No 'feature' labeled issues found.");
+		// Retrieve the card ID for the issue
+		const cardId = await getCardId(issueNumber, COLUMN_ID);
+		if (!cardId) {
+			console.error('Card ID not found for issue:', issueNumber);
 			return;
 		}
 
-		issues.data.forEach(issue => {
-			console.log('Issue Title:', issue.title);
-		});
+		// Move issue to 'Backlog' column
+		await graphqlWithAuth(
+			`
+            mutation ($cardId: ID!, $columnId: ID!) {
+                moveProjectCard(input: {cardId: $cardId, columnId: $columnId}) {
+                    clientMutationId
+                }
+            }`,
+			{
+				cardId: cardId,
+				columnId: COLUMN_ID,
+			},
+		);
 	} catch (error) {
-		console.error('Issue check failed:', error);
+		console.error('Error processing issue:', error);
 	}
 }
 

@@ -7,7 +7,7 @@ on:
 jobs:
   manage-backlog:
     runs-on: ubuntu-latest
-    if: github.event.label.name == 'feature'
+    if: github.event.issue.labels.*.name == 'feature'
 
     steps:
       - name: Checkout code
@@ -18,19 +18,12 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Change directory to .github/utils
-        run: cd .github/utils
-
       - name: Install dependencies
         run: npm install
         working-directory: .github/utils
 
       - name: Compile TypeScript
         run: npx tsc
-        working-directory: .github/utils
-
-      - name: Rename JS to MJS
-        run: mv dist/moveIssueToBacklog.js dist/moveIssueToBacklog.mjs
         working-directory: .github/utils
 
       - name: Run script
