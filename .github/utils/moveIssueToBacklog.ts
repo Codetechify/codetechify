@@ -24,15 +24,15 @@ async function moveIssueToBacklog() {
 		},
 	});
 
-	try {
-		// Replace with your repository's owner and name
-		const owner = 'Codetechify';
-		const repo = 'codetechify-repo';
+	await checkAuthentication(octokit);
+	await checkRepoPermissions(octokit, 'Codetechify', 'codetechify-repo');
+	await testApiCall(octokit);
 
+	try {
 		// Fetch the issue
 		const issue = await octokit.rest.issues.get({
-			owner,
-			repo,
+			owner: 'Codetechify',
+			repo: 'codetechify-repo',
 			issue_number: parseInt(issueId),
 		});
 
@@ -44,20 +44,54 @@ async function moveIssueToBacklog() {
 				project_id: parseInt(projectId),
 			});
 
-		const columns = columnsResponse.data;
-
-		// Check if 'Backlog' column exists
-		const backlogColumn = columns.find(column => column.name === 'Backlog');
-		if (!backlogColumn) {
-			console.error('Backlog column not found');
-			return;
-		}
-
-		console.log(`Backlog column found: ${backlogColumn.name}`);
-
-		// Add logic here to move the issue to the 'Backlog' column
+		// Further processing...
 	} catch (error) {
-		console.error(`Error processing issue: ${error}`);
+		if (error instanceof Octokit.HttpError) {
+			console.error(`Error processing issue: ${error.status} ${error.message}`);
+			console.error(`Request URL: ${error.request.url}`);
+			console.error(`Request method: ${error.request.method}`);
+		} else {
+			console.error(`Error processing issue: ${error}`);
+		}
+	}
+}
+
+async function checkAuthentication(octokit: Octokit) {
+	try {
+		const response = await octokit.rest.users.getAuthenticated();
+		console.log(`Authenticated as: ${response.data.login}`);
+	} catch (error) {
+		console.error(`Authentication failed: ${error}`);
+	}
+}
+
+async function checkRepoPermissions(
+	octokit: Octokit,
+	owner: string,
+	repo: string,
+) {
+	try {
+		const user = await octokit.rest.users.getAuthenticated();
+		const response = await octokit.rest.repos.getCollaboratorPermissionLevel({
+			owner,
+			repo,
+			username: user.data.login,
+		});
+		console.log(`Permission level: ${response.data.permission}`);
+	} catch (error) {
+		console.error(`Error checking permissions: ${error}`);
+	}
+}
+
+async function testApiCall(octokit: Octokit) {
+	try {
+		const response = await octokit.rest.issues.listForRepo({
+			owner: 'Codetechify',
+			repo: 'codetechify-repo',
+		});
+		console.log(`Issues fetched: ${response.data.length}`);
+	} catch (error) {
+		console.error(`Error fetching issues: ${error}`);
 	}
 }
 
