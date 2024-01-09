@@ -1,98 +1,43 @@
-import { Octokit } from '@octokit/rest';
-import fetch from 'node-fetch';
-import { Endpoints } from '@octokit/types';
+import * as core from '@actions/core';
+import { context, getOctokit } from '@actions/github';
 
-type ListColumnsResponse =
-	Endpoints['GET /projects/{project_id}/columns']['response'];
-
-async function moveIssueToBacklog() {
-	const token = process.env.CODETECHIFY_ACCESS_TOKEN;
-	const issueId = process.env.ISSUE_ID;
-	const projectId = process.env.PROJECT_ID; // Ensure this is set in your environment
-
-	if (!token || !issueId || !projectId) {
-		console.error(
-			'Missing environment variables: CODETECHIFY_ACCESS_TOKEN, ISSUE_ID, or PROJECT_ID',
-		);
-		process.exit(1);
-	}
-
-	const octokit = new Octokit({
-		auth: token,
-		request: {
-			fetch,
-		},
-	});
-
-	await checkAuthentication(octokit);
-	await checkRepoPermissions(octokit, 'Codetechify', 'codetechify-repo');
-	await testApiCall(octokit);
-
+async function run() {
 	try {
-		// Fetch the issue
-		const issue = await octokit.rest.issues.get({
-			owner: 'Codetechify',
-			repo: 'codetechify-repo',
-			issue_number: parseInt(issueId),
+		// Retrieve the token and other inputs from the workflow
+		const token = core.getInput('CODETECHIFY_ACCESS_TOKEN', { required: true });
+		const issueId = parseInt(core.getInput('ISSUE_ID', { required: true }));
+		const projectId = parseInt(core.getInput('PROJECT_ID', { required: true }));
+
+		// Initialize Octokit with the provided token
+		const octokit = getOctokit(token);
+
+		// Example of using Octokit to retrieve issue details
+		// Adjust this part as per your logic
+		const { data: issue } = await octokit.rest.issues.get({
+			owner: context.repo.owner,
+			repo: context.repo.repo,
+			issue_number: issueId,
 		});
 
-		console.log(`Issue found: ${issue.data.title}`);
+		console.log(`Issue found: ${issue.title}`);
 
-		// Fetch project columns
-		const columnsResponse: ListColumnsResponse =
-			await octokit.rest.projects.listColumns({
-				project_id: parseInt(projectId),
-			});
+		// Your logic to decide whether to move the issue to the backlog
+		// For example, based on labels, status, etc.
+		// ...
 
-		// Further processing...
+		// If conditions are met, move the issue to the backlog
+		// Adjust this part as per your logic
+		// ...
 	} catch (error) {
-		if (error instanceof Octokit.HttpError) {
-			console.error(`Error processing issue: ${error.status} ${error.message}`);
-			console.error(`Request URL: ${error.request.url}`);
-			console.error(`Request method: ${error.request.method}`);
+		if (error instanceof Error) {
+			console.error(`Error processing issue: ${error.message}`);
+			if ('status' in error) {
+				console.error(`HTTP Status: ${error['status']}`);
+			}
 		} else {
-			console.error(`Error processing issue: ${error}`);
+			console.error(`Unexpected error: ${error}`);
 		}
 	}
 }
 
-async function checkAuthentication(octokit: Octokit) {
-	try {
-		const response = await octokit.rest.users.getAuthenticated();
-		console.log(`Authenticated as: ${response.data.login}`);
-	} catch (error) {
-		console.error(`Authentication failed: ${error}`);
-	}
-}
-
-async function checkRepoPermissions(
-	octokit: Octokit,
-	owner: string,
-	repo: string,
-) {
-	try {
-		const user = await octokit.rest.users.getAuthenticated();
-		const response = await octokit.rest.repos.getCollaboratorPermissionLevel({
-			owner,
-			repo,
-			username: user.data.login,
-		});
-		console.log(`Permission level: ${response.data.permission}`);
-	} catch (error) {
-		console.error(`Error checking permissions: ${error}`);
-	}
-}
-
-async function testApiCall(octokit: Octokit) {
-	try {
-		const response = await octokit.rest.issues.listForRepo({
-			owner: 'Codetechify',
-			repo: 'codetechify-repo',
-		});
-		console.log(`Issues fetched: ${response.data.length}`);
-	} catch (error) {
-		console.error(`Error fetching issues: ${error}`);
-	}
-}
-
-moveIssueToBacklog();
+run();
