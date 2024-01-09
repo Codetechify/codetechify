@@ -12,7 +12,7 @@ async function moveIssueToBacklog() {
 
 	if (!token || !issueId || !projectId) {
 		console.error(
-			'Missing environment variables: CODETECHIFY_REPO_TOKEN, ISSUE_ID, or PROJECT_ID',
+			'Missing environment variables: CODETECHIFY_ACCESS_TOKEN, ISSUE_ID, or PROJECT_ID',
 		);
 		process.exit(1);
 	}
