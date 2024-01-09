@@ -15,7 +15,7 @@ interface Issue {
 	// You can add other necessary properties of an Issue here
 }
 
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const CODETECHIFY_REPO_TOKEN = process.env.CODETECHIFY_REPO_TOKEN;
 const PROJECT_ID = 2; // Replace with your actual project ID
 const ISSUE_ID = process.env.ISSUE_ID ? parseInt(process.env.ISSUE_ID) : null;
 
@@ -27,7 +27,7 @@ async function fetchProjectColumns(
 	const response = await fetch(url, {
 		method: 'GET',
 		headers: {
-			Authorization: `Bearer ${GITHUB_TOKEN}`,
+			Authorization: `Bearer ${CODETECHIFY_REPO_TOKEN}`,
 			Accept: 'application/vnd.github.v3+json',
 		},
 	});
@@ -47,7 +47,7 @@ async function checkIssue(issueId: number) {
 
 	const response = await fetch(url, {
 		headers: {
-			Authorization: `Bearer ${GITHUB_TOKEN}`,
+			Authorization: `Bearer ${CODETECHIFY_REPO_TOKEN}`,
 			Accept: 'application/vnd.github.v3+json',
 		},
 	});
