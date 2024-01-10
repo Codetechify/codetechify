@@ -1,52 +1,49 @@
-import * as core from '@actions/core';
-import { Octokit } from '@octokit/rest';
-
-// Assuming you have installed @octokit/plugin-rest-endpoint-methods
-import { RestEndpointMethodTypes } from '@octokit/plugin-rest-endpoint-methods';
-
-// Type definitions for API responses
-type GetProjectResponseType =
-	RestEndpointMethodTypes['projects']['get']['response'];
-type ListColumnsResponseType =
-	RestEndpointMethodTypes['projects']['listColumns']['response'];
+import fetch from 'node-fetch';
 
 // Ensure your environmental variables are set
 const token = process.env.CODETECHIFY_ACCESS_TOKEN as string;
 const projectId = parseInt(process.env.PROJECT_ID as string);
 
-// Create a new Octokit instance
-const octokit = new Octokit({ auth: token });
+const githubApiBaseUrl = 'https://api.github.com';
 
-async function getProject(projectId: number): Promise<GetProjectResponseType> {
+async function getProject(projectId: number) {
+	const url = `${githubApiBaseUrl}/projects/${projectId}`;
 	try {
-		const response = await octokit.rest.projects.get({
-			project_id: projectId,
+		const response = await fetch(url, {
+			headers: {
+				Authorization: `token ${token}`,
+				Accept: 'application/vnd.github.v3+json',
+			},
 		});
-		return response;
-	} catch (error) {
-		if (error instanceof Error) {
-			core.setFailed(error.message);
-		} else {
-			core.setFailed('Unknown error occurred');
+
+		if (!response.ok) {
+			throw new Error(`HTTP error! status: ${response.status}`);
 		}
+
+		return await response.json();
+	} catch (error) {
+		console.error('Error fetching project:', error);
 		throw error; // Rethrow after handling
 	}
 }
 
-async function listProjectColumns(
-	projectId: number,
-): Promise<ListColumnsResponseType> {
+async function listProjectColumns(projectId: number) {
+	const url = `${githubApiBaseUrl}/projects/${projectId}/columns`;
 	try {
-		const response = await octokit.rest.projects.listColumns({
-			project_id: projectId,
+		const response = await fetch(url, {
+			headers: {
+				Authorization: `token ${token}`,
+				Accept: 'application/vnd.github.v3+json',
+			},
 		});
-		return response;
-	} catch (error) {
-		if (error instanceof Error) {
-			core.setFailed(error.message);
-		} else {
-			core.setFailed('Unknown error occurred');
+
+		if (!response.ok) {
+			throw new Error(`HTTP error! status: ${response.status}`);
 		}
+
+		return await response.json();
+	} catch (error) {
+		console.error('Error fetching project columns:', error);
 		throw error; // Rethrow after handling
 	}
 }
@@ -54,14 +51,14 @@ async function listProjectColumns(
 async function run() {
 	try {
 		const project = await getProject(projectId);
-		core.info(`Project details: ${JSON.stringify(project.data)}`);
+		console.log(`Project details: ${JSON.stringify(project)}`);
 
 		const columns = await listProjectColumns(projectId);
-		core.info(`Project columns: ${JSON.stringify(columns.data)}`);
+		console.log(`Project columns: ${JSON.stringify(columns)}`);
 
 		// Additional logic for each column...
 	} catch (error) {
-		core.setFailed(`Failed to run the script: ${error}`);
+		console.error(`Failed to run the script: ${error}`);
 	}
 }
 
