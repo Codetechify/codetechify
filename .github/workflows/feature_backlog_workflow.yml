@@ -30,8 +30,11 @@ jobs:
         run: mv dist/moveIssueToBacklog.js dist/moveIssueToBacklog.mjs
         working-directory: .github/utils
 
-      - name: Use a repository secret
+      - name: Run Script
         env:
-          MY_SECRET: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
-        run: |
-          echo "Running a script ${{secrets.CODETECHIFY_ACCESS_TOKEN}} that uses the secret"
+          CODETECHIFY_ACCESS_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+          REPO_NAME: codetechify-repo
+          ORG_NAME: Codetechify
+          PROJECT_ID: 2
+        run: npm start
+        working-directory: .github/utils
