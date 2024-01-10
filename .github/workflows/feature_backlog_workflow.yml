@@ -37,4 +37,4 @@ jobs:
         #   ORG_NAME: Codetechify
         #   PROJECT_ID: 2
         run: ls -la
-        working-directory: .github/utils
+        working-directory: .github/utils/dist
