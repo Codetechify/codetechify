@@ -37,4 +37,4 @@ jobs:
           ORG_NAME: Codetechify
           PROJECT_ID: 2
         run: npm start
-        working-directory: .github/utils/dist
+        working-directory: .github/utils
