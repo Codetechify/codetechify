@@ -30,11 +30,15 @@ jobs:
         run: mv dist/moveIssueToBacklog.js dist/moveIssueToBacklog.mjs
         working-directory: .github/utils
 
-      - name: Run script
-        env:
-          CODETECHIFY_ACCESS_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
-          REPO_NAME: codetechify-repo
-          ORG_NAME: Codetechify
-          PROJECT_ID: 2
-        run: npm start
+      # - name: Run script
+      #   env:
+      #     CODETECHIFY_ACCESS_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+      #     REPO_NAME: codetechify-repo
+      #     ORG_NAME: Codetechify
+      #     PROJECT_ID: 2
+      #   run: npm start
+      #   working-directory: .github/utils
+
+      - name: Display content of file
+        run: cat dist/moveIssueToBacklog.mjs
         working-directory: .github/utils
