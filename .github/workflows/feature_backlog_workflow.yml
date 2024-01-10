@@ -31,10 +31,10 @@ jobs:
         working-directory: .github/utils
 
       - name: Run Script
-        env:
-          CODETECHIFY_ACCESS_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
-          REPO_NAME: codetechify-repo
-          ORG_NAME: Codetechify
-          PROJECT_ID: 2
+        # env:
+        #   CODETECHIFY_ACCESS_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+        #   REPO_NAME: codetechify-repo
+        #   ORG_NAME: Codetechify
+        #   PROJECT_ID: 2
         run: npm start
         working-directory: .github/utils
