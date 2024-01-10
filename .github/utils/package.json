@@ -4,7 +4,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "tsc",
-		"start": "node .github/utils/dist/moveIssueToBacklog.mjs"
+		"start": "node dist/moveIssueToBacklog.mjs"
 	},
 	"dependencies": {
 		"@octokit/rest": "^20.0.2",
