@@ -14,38 +14,51 @@ jobs:
 
       - name: Find Necessary IDs
         id: findIDs
-        uses: helaili/github-graphql-action@2.0.1
+        uses: actions/github-script@v5
         with:
-          query: |
-            query {
-              repository(owner: "${{ github.repository_owner }}", name: "${{ github.event.repository.name }}") {
-                id
-                issues(first: 1, labels: ["feature"], orderBy: {field: CREATED_AT, direction: DESC}) {
-                  nodes {
+          script: |
+            const query = `
+              query {
+                repository(owner: "${context.repo.owner}", name: "${context.repo.repo}") {
+                  id
+                  issues(first: 1, labels: ["feature"], orderBy: {field: CREATED_AT, direction: DESC}) {
+                    nodes {
+                      id
+                    }
+                  }
+                  projectV2(number: 2) {
                     id
                   }
                 }
-                projectV2(number: 2) {
-                  id
-                }
               }
-            }
-        env:
-          CODETECHIFY_ACCESS_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+            `;
+            const result = await github.graphql(query);
+            const repositoryId = result.repository.id;
+            const issueId = result.repository.issues.nodes[0].id;
+            const projectId = result.repository.projectV2.id;
+            return {
+              repositoryId,
+              issueId,
+              projectId
+            };
 
       - name: Assign Issue to ProjectV2
-        uses: helaili/github-graphql-action@2.0.1
+        uses: actions/github-script@v5
         with:
-          query: |
-            mutation {
-              addProjectV2ItemById(input: {
-                projectId: "${{ fromJson(steps.findIDs.outputs.queryResult).data.repository.projectV2.id }}"
-                contentId: "${{ fromJson(steps.findIDs.outputs.queryResult).data.repository.issues.nodes[0].id }}"
-              }) {
-                item {
-                  id
+          script: |
+            const outputs = steps.findIDs.outputs;
+            const projectId = outputs.projectId;
+            const issueId = outputs.issueId;
+            const mutation = `
+              mutation {
+                addProjectV2ItemById(input: {
+                  projectId: "${projectId}",
+                  contentId: "${issueId}"
+                }) {
+                  item {
+                    id
+                  }
                 }
               }
-            }
-        env:
-          CODETECHIFY_ACCESS_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+            `;
+            await github.graphql(mutation);
