@@ -5,43 +5,38 @@ on:
     types: [labeled]
 
 jobs:
-  fetch-issue-project-info:
+  process-feature-issue:
     if: github.event.label.name == 'feature'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Run GraphQL Query
-        id: graphql
-        uses: actions/github-script@0.9.0
+      - name: Find Issue and Project ID
+        uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           script: |
             const query = `
-              query($owner: String!, $repo: String!, $number: Int!) {
+              query($owner: String!, $repo: String!, $projectNumber: Int!) {
                 repository(owner: $owner, name: $repo) {
-                  issue(number: $number) {
-                    id
-                    projectV2(number: 2) {
+                  issues(last: 1, labels: ["feature"]) {
+                    nodes {
                       id
                     }
+                  }
+                  projectV2(number: $projectNumber) {
+                    id
                   }
                 }
               }
             `;
-            const issueNumber = context.issue.number;
-            const result = await github.graphql(query, {
-              owner: 'Codetchify',
-              repo: 'codetechify-repo',
-              number: issueNumber
-            });
-            console.log('Issue ID:', result.repository.issue.id);
-            console.log('ProjectV2 ID:', result.repository.issue.projectV2.id);
-            core.setOutput('issue_id', result.repository.issue.id);
-            core.setOutput('projectV2_id', result.repository.issue.projectV2.id);
+            const variables = {
+              owner: "Codetechify",
+              repo: "codetechify-repo",
+              projectNumber: 2
+            };
 
-      - name: Print Issue and Project Info
-        run: |
-          echo "Issue ID: ${{ steps.graphql.outputs.issue_id }}"
-          echo "ProjectV2 ID: ${{ steps.graphql.outputs.projectV2_id }}"
+            const result = await github.graphql(query, variables);
+            console.log("Issue ID: " + result.repository.issues.nodes[0].id);
+            console.log("Project ID: " + result.repository.projectV2.id);
