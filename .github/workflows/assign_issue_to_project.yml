@@ -19,34 +19,31 @@ jobs:
           script: |
             const query = `
               query {
-                repository(owner: "${context.repo.owner}", name: "${context.repo.repo}") {
+                repository(owner: "Codetechify", name: "codetechify-repo") {
                   id
                   issues(first: 1, labels: ["feature"], orderBy: {field: CREATED_AT, direction: DESC}) {
                     nodes {
                       id
                     }
                   }
-                  projectV2(number: 2) {
+                  projectV2(number: YOUR_PROJECT_NUMBER) {
                     id
                   }
                 }
               }
             `;
             const result = await github.graphql(query);
-            const repositoryId = result.repository.id;
-            const issueId = result.repository.issues.nodes[0].id;
-            const projectId = result.repository.projectV2.id;
             return {
-              repositoryId,
-              issueId,
-              projectId
+              repositoryId: result.repository.id,
+              issueId: result.repository.issues.nodes[0].id,
+              projectId: result.repository.projectV2.id
             };
 
       - name: Assign Issue to ProjectV2
         uses: actions/github-script@v5
         with:
           script: |
-            const outputs = steps.findIDs.outputs;
+            const outputs = ${{ steps.findIDs.outputs }};
             const projectId = outputs.projectId;
             const issueId = outputs.issueId;
             const mutation = `
@@ -62,3 +59,5 @@ jobs:
               }
             `;
             await github.graphql(mutation);
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
