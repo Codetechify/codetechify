@@ -26,7 +26,7 @@ jobs:
                       id
                     }
                   }
-                  projectV2(number: YOUR_PROJECT_NUMBER) {
+                  projectV2(number: 2) {
                     id
                   }
                 }
