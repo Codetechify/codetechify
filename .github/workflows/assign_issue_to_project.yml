@@ -12,7 +12,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Find Issue and Project ID
+      - name: Find Issue and Project ID and Assign Project to Issue
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
@@ -38,5 +38,28 @@ jobs:
             };
 
             const result = await github.graphql(query, variables);
-            console.log("Issue ID: " + result.repository.issues.nodes[0].id);
-            console.log("Project ID: " + result.repository.projectV2.id);
+            const issueId = result.repository.issues.nodes[0].id;
+            const projectId = result.repository.projectV2.id;
+
+            console.log("Issue ID: " + issueId);
+            console.log("Project ID: " + projectId);
+
+            const mutation = `
+              mutation addProjectToIssue($projectId: ID!, $contentId: ID!) {
+                addProjectV2ItemById(input: {
+                  projectId: $projectId,
+                  contentId: $contentId
+                }) {
+                  item {
+                    id
+                  }
+                }
+              }
+            `;
+
+            const mutationResult = await github.graphql(mutation, {
+              projectId: projectId,
+              contentId: issueId
+            });
+
+            console.log("Project Item ID: " + mutationResult.addProjectV2ItemById.item.id);
