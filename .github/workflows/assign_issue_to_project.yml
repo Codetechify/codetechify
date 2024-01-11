@@ -1,0 +1,51 @@
+name: Assign Issue to ProjectV2
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  assign-to-project:
+    if: github.event.label.name == 'feature'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Find Necessary IDs
+        id: findIDs
+        uses: helaili/github-graphql-action@2.0.1
+        with:
+          query: |
+            query {
+              repository(owner: "${{ github.repository_owner }}", name: "${{ github.event.repository.name }}") {
+                id
+                issues(first: 1, labels: ["feature"], orderBy: {field: CREATED_AT, direction: DESC}) {
+                  nodes {
+                    id
+                  }
+                }
+                projectV2(number: YOUR_PROJECT_NUMBER) {
+                  id
+                }
+              }
+            }
+        env:
+          CODETECHIFY_ACCESS_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+
+      - name: Assign Issue to ProjectV2
+        uses: helaili/github-graphql-action@2.0.1
+        with:
+          query: |
+            mutation {
+              addProjectV2ItemById(input: {
+                projectId: "${{ fromJson(steps.findIDs.outputs.queryResult).data.repository.projectV2.id }}"
+                contentId: "${{ fromJson(steps.findIDs.outputs.queryResult).data.repository.issues.nodes[0].id }}"
+              }) {
+                item {
+                  id
+                }
+              }
+            }
+        env:
+          CODETECHIFY_ACCESS_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
