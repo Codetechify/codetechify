@@ -1,0 +1,32 @@
+name: Create Feature Branch from Issue
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  create-branch:
+    if: github.event.label.name == 'doing' # Adjust the label name as needed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Create branch from issue title
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const title = context.payload.issue.title.toLowerCase().replace(/\s+/g, '_');
+            const branchName = `feature/${title}`;
+            const ref = `refs/heads/${branchName}`;
+            const sha = context.payload.issue.head_sha;
+
+            console.log(`Creating branch: ${branchName}`);
+
+            await github.rest.git.createRef({
+              owner: 'Codetechify',
+              repo: 'codetechify-repo',
+              ref: ref,
+              sha: sha
+            });
