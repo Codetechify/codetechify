@@ -15,7 +15,7 @@ jobs:
       - name: Create branch from issue title
         uses: actions/github-script@v6
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           script: |
             // Extract the title from the issue and format it for branch naming
             const title = context.payload.issue.title.toLowerCase().replace(/\s+/g, '_');
