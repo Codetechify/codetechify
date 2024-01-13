@@ -1,0 +1,41 @@
+name: Feature Issue Workflow
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  add-to-project:
+    if: github.event.label.name == 'feature'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Add issue to project
+        uses: actions/github-script@v5
+        with:
+          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+          script: |
+            const github = require('@actions/github');
+            const query = `
+              mutation ($contentId: ID!, $projectId: ID!) {
+                addProjectNextItem(input: {contentId: $contentId, projectId: $projectId}) {
+                  projectNextItem {
+                    id
+                  }
+                }
+              }
+            `;
+
+            const issueId = github.context.payload.issue.node_id;
+            const projectId = 2; // Project number 2
+
+            // Note: The owner (Codetechify) and repo (codetechify-repo) are implicitly set in the context of the issue
+            await github.graphql(query, {
+              contentId: issueId,
+              projectId: projectId,
+              headers: {
+                authorization: `token ${process.env.CODETECHIFY_ACCESS_TOKEN}`
+              }
+            });
