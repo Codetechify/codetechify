@@ -12,7 +12,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Create branch from issue title and update project card
+      - name: Create branch from issue title using GraphQL
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
@@ -25,10 +25,13 @@ jobs:
 
             const title = context.payload.issue.title.toLowerCase().replace(/\s+/g, '_');
             const branchName = `feature/${title}`;
+            const ref = `refs/heads/${branchName}`;
 
-            // Fetch the default branch name and its latest commit SHA using GraphQL
-            const repoInfoQuery = `
-              query($owner: String!, $repo: String!) {
+            console.log(`Creating branch: ${branchName}`);
+
+            // GraphQL query to get default branch and latest commit SHA
+            const query = `
+              query repositoryDefaultBranch($owner: String!, $repo: String!) {
                 repository(owner: $owner, name: $repo) {
                   defaultBranchRef {
                     name
@@ -40,29 +43,31 @@ jobs:
               }
             `;
 
-            const repoInfo = await graphqlWithAuth(repoInfoQuery, {
+            const response = await graphqlWithAuth(query, {
               owner: 'Codetechify',
               repo: 'codetechify-repo'
             });
 
-            const defaultBranch = repoInfo.repository.defaultBranchRef.name;
-            const sha = repoInfo.repository.defaultBranchRef.target.oid;
+            const defaultBranch = response.repository.defaultBranchRef.name;
+            const sha = response.repository.defaultBranchRef.target.oid;
 
-            // Create the new branch using GraphQL
-            const createBranchMutation = `
-              mutation($owner: String!, $repo: String!, $ref: String!, $sha: String!) {
+            // GraphQL mutation to create a new branch
+            const mutation = `
+              mutation createBranch($owner: String!, $repo: String!, $ref: String!, $sha: String!) {
                 createRef(input: { repositoryId: $repo, name: $ref, oid: $sha }) {
                   clientMutationId
                 }
               }
             `;
 
-            await graphqlWithAuth(createBranchMutation, {
+            await graphqlWithAuth(mutation, {
               owner: 'Codetechify',
               repo: 'codetechify-repo',
-              ref: `refs/heads/${branchName}`,
+              ref: ref,
               sha: sha
             });
+
+            console.log(`Branch ${branchName} created successfully`);
 
       - name: Move Issue in Project
         uses: actions/github-script@v6
