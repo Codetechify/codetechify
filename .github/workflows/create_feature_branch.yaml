@@ -1,29 +1,54 @@
-name: Create Feature Branch
+name: Feature Branch Workflow
 
 on:
   issues:
-    types: [edited]
+    types: [labeled, unlabeled, edited]
 
 jobs:
-  create_branch:
+  create-feature-branch:
+    if: >
+      github.event_name == 'issues' &&
+      github.event.action == 'labeled' &&
+      contains(github.event.issue.labels.*.name, 'feature')
     runs-on: ubuntu-latest
     steps:
-      - name: Check for feature label
-        id: label_check
-        if: github.event.issue.labels.*.name == 'feature'
-        run: echo "Feature label found."
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - name: Checkout Repository
-        if: steps.label_check.outputs.result == 'true'
-        uses: actions/checkout@v2
+      - name: Extract feature name
+        id: feature-name
+        run: echo "::set-output name=FEATURE_NAME::${{ github.event.issue.title }}"
 
-      - name: Create Feature Branch
-        if: steps.label_check.outputs.result == 'true'
+      - name: Create new branch
         run: |
-          FEATURE_NAME=$(echo "${{ github.event.issue.title }}" | tr ' ' '_' | tr -cd '[[:alnum:]]_')
-          git config --global user.email "you@example.com"
-          git config --global user.name "Your Name"
-          git checkout -b feature/${FEATURE_NAME}
-          git push origin feature/${FEATURE_NAME}
+          git checkout -b feature/${{ steps.feature-name.outputs.FEATURE_NAME }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+
+      - name: Interact with projectV2 using GraphQL
+        run: |
+          curl -X POST -H "Authorization: bearer ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}" \
+          -H "Content-Type: application/json" \
+          -d @- https://api.github.com/graphql << EOF
+          {
+            "query": "mutation ($repositoryId: ID!, $projectId: ID!, $itemName: String!) {
+              addProjectV2ItemById(input: {repositoryId: $repositoryId, projectId: $projectId, contentId: $itemName}) {
+                item {
+                  id
+                }
+              }
+            }",
+            "variables": {
+              "repositoryId": "${{ github.repository_owner_id }}",
+              "projectId": "2",
+              "itemName": "${{ github.event.issue.node_id }}"
+            }
+          }
+          EOF
+        env:
+          GITHUB_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+
+      - name: Push branch to remote
+        run: git push --set-upstream origin feature/${{ steps.feature-name.outputs.FEATURE_NAME }}
         env:
           GITHUB_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
