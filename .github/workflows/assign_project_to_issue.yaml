@@ -58,7 +58,7 @@ jobs:
               }
             `;
             const variables = {
-              issueId: ${{ steps.get_ids.outputs.issueId }},
-              projectId: ${{ steps.get_ids.outputs.projectId }}
+              issueId: '${{ steps.get_ids.outputs.issueId }}',
+              projectId: '${{ steps.get_ids.outputs.projectId }}'
             };
             await github.graphql(mutation, variables);
