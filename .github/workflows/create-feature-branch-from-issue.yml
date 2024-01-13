@@ -19,7 +19,7 @@ jobs:
           script: |
             const graphqlWithAuth = github.graphql.defaults({
               headers: {
-                authorization: `token ${secrets.CODETECHIFY_ACCESS_TOKEN}`,
+                authorization: `token ${github.token}`,
               },
             });
 
