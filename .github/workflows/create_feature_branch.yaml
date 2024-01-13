@@ -1,20 +1,26 @@
-name: Issue Status Workflow
+name: Create Feature Branch on Status Change
 
 on:
   issues:
     types: [edited]
 
 jobs:
-  create-branch-on-status:
-    if: github.event.issue.projectV2 == 2 && github.event.issue.status == 'Doing'
+  create-feature-branch:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v2
+
       - name: Create Feature Branch
-        run: |
-          FEATURE_NAME=$(echo "${{ github.event.issue.title }}" | tr ' ' '-')
-          git branch "feature/$FEATURE_NAME"
-          git push origin "feature/$FEATURE_NAME"
+        if: github.event.issue.project_card.column_name == 'Doing' && github.event.issue.project_card.previous_column_name == 'Backlog'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ORG_NAME: Codetechify
+          REPO_NAME: codetechify-repo
+          PROJECT_NUMBER: 2
+        run: |
+          echo "Creating a new branch for the issue titled: $ISSUE_TITLE"
+          FEATURE_BRANCH_NAME=$(echo $ISSUE_TITLE | sed 's/ /-/g' | tr '[:upper:]' '[:lower:]')
+          git checkout -b feature/$FEATURE_BRANCH_NAME
+          git push origin feature/$FEATURE_BRANCH_NAME
