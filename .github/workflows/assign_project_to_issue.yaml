@@ -28,7 +28,7 @@ jobs:
             `;
 
             const issueId = context.payload.issue.node_id;
-            const projectId = 2; // Project number 2
+            const projectId = 'Globally unique project ID';  // Replace with the actual project ID
 
             await github.graphql(query, {
               contentId: issueId,
