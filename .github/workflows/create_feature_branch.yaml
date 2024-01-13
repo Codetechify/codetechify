@@ -1,0 +1,29 @@
+name: Create Feature Branch
+
+on:
+  issues:
+    types: [edited]
+
+jobs:
+  create_branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for feature label
+        id: label_check
+        if: github.event.issue.labels.*.name == 'feature'
+        run: echo "Feature label found."
+
+      - name: Checkout Repository
+        if: steps.label_check.outputs.result == 'true'
+        uses: actions/checkout@v2
+
+      - name: Create Feature Branch
+        if: steps.label_check.outputs.result == 'true'
+        run: |
+          FEATURE_NAME=$(echo "${{ github.event.issue.title }}" | tr ' ' '_' | tr -cd '[[:alnum:]]_')
+          git config --global user.email "you@example.com"
+          git config --global user.name "Your Name"
+          git checkout -b feature/${FEATURE_NAME}
+          git push origin feature/${FEATURE_NAME}
+        env:
+          GITHUB_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
