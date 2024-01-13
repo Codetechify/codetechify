@@ -6,41 +6,57 @@ on:
 
 jobs:
   create-branch:
-    if: github.event.label.name == 'doing' # Adjust the label name as needed
+    if: github.event.label.name == 'feature'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Create branch from issue title
+      - name: Create Branch
         uses: actions/github-script@v6
         with:
-          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // Extract the title from the issue and format it for branch naming
             const title = context.payload.issue.title.toLowerCase().replace(/\s+/g, '_');
             const branchName = `feature/${title}`;
             const ref = `refs/heads/${branchName}`;
 
-            console.log(`Creating branch: ${branchName}`);
+            console.log(`Checking if branch exists: ${branchName}`);
 
-            // Fetch the default branch name
-            const defaultBranch = await github.rest.repos.get({
-              owner: 'Codetechify',
-              repo: 'codetechify-repo'
-            }).then(res => res.data.default_branch);
+            // Check if the branch already exists
+            try {
+              await github.rest.git.getRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${branchName}`
+              });
+              console.log(`Branch ${branchName} already exists`);
+            } catch (error) {
+              if (error.status === 404) {
+                console.log(`Branch ${branchName} does not exist, creating now`);
 
-            // Fetch the latest commit SHA of the default branch
-            const sha = await github.rest.git.getRef({
-              owner: 'Codetechify',
-              repo: 'codetechify-repo',
-              ref: `heads/${defaultBranch}`
-            }).then(res => res.data.object.sha);
+                // Fetch the default branch name
+                const defaultBranch = await github.rest.repos.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo
+                }).then(res => res.data.default_branch);
 
-            // Create the new branch from the latest commit SHA of the default branch
-            await github.rest.git.createRef({
-              owner: 'Codetechify',
-              repo: 'codetechify-repo',
-              ref: ref,
-              sha: sha
-            });
+                // Fetch the latest commit SHA of the default branch
+                const sha = await github.rest.git.getRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `heads/${defaultBranch}`
+                }).then(res => res.data.object.sha);
+
+                // Create the new branch from the latest commit SHA of the default branch
+                await github.rest.git.createRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: ref,
+                  sha: sha
+                });
+                console.log(`Branch created: ${branchName}`);
+              } else {
+                throw error;
+              }
+            }
