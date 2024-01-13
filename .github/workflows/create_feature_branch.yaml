@@ -1,19 +1,25 @@
-name: Issue Based Branch Creation
+name: Issue Workflow
+
 on:
-  issues:
-    types: [edited]
+  workflow_dispatch: # or another event
 
 jobs:
   create-branch:
-    if: github.event.changes.status.from != 'Doing' && github.event.issue.status == 'Doing'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Create Feature Branch
+      - name: Check Issue Status
+        id: check_status
         run: |
-          ISSUE_TITLE=$(echo "${{ github.event.issue.title }}" | sed -E 's/[^a-zA-Z0-9]+/-/g' | sed -E 's/^-+|-+$//g' | tr '[:upper:]' '[:lower:]')
-          BRANCH_NAME="feature/$ISSUE_TITLE"
-          git branch "$BRANCH_NAME"
-          git push origin "$BRANCH_NAME"
+          # Add script or command to check if the issue status is 'Doing'
+          # This will likely involve using GitHub's GraphQL API
+
+      - name: Create New Branch
+        if: steps.check_status.outputs.status == 'Doing'
+        run: |
+          ISSUE_TITLE=$(echo 'Your method to extract issue title')
+          BRANCH_NAME="feature/${ISSUE_TITLE// /-}"
+          git checkout -b $BRANCH_NAME
+          git push origin $BRANCH_NAME
