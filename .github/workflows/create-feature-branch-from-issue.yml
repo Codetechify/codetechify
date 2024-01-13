@@ -6,7 +6,7 @@ on:
 
 jobs:
   create-branch:
-    if: github.event.label.name == 'feature'
+    if: github.event.label.name == 'doing'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
