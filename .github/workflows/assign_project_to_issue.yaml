@@ -1,56 +1,93 @@
-name: Feature Issue Workflow
+name: Assign Issue to Project
 
 on:
   issues:
     types: [labeled]
 
 jobs:
-  add-to-project:
-    if: github.event.label.name == 'feature'
+  assign-project:
     runs-on: ubuntu-latest
+    if: github.event.label.name == 'feature'
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Add issue to project
-        uses: actions/github-script@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
         with:
-          script: |
-            const githubToken = process.env.CODETECHIFY_ACCESS_TOKEN;
-            const headers = {
-              Authorization: `token ${githubToken}`,
-              "GraphQL-Features": "projects_next_graphql"
-            };
+          node-version: '14'
 
-            const query = `
-              mutation ($projectId: ID!, $contentId: ID!) {
-                addProjectNextItem(input: {projectId: $projectId, contentId: $contentId}) {
-                  projectNextItem {
+      - name: Install dependencies
+        run: npm install @octokit/graphql
+
+      - name: Get Issue and Project ID
+        id: get-ids
+        run: |
+          const { graphql } = require("@octokit/graphql");
+          const graphqlWithAuth = graphql.defaults({
+            headers: {
+              authorization: `token ${process.env.CODETECHIFY_ACCESS_TOKEN}`,
+            },
+          });
+
+          async function run() {
+            const issueAndProjectQuery = `
+              query getIssueAndProjectId($name: String!, $owner: String!, $states: [IssueState!], $number: Int!) {
+                repository(name: $name, owner: $owner) {
+                  issues(last: 1, states: $states) {
+                    nodes {
+                      id
+                    }
+                  }
+                  projectV2(number: $number) {
                     id
                   }
                 }
               }
             `;
 
-            const variables = {
-              projectId: 2,  
-              contentId: context.payload.issue.node_id
-            };
+            const response = await graphqlWithAuth(issueAndProjectQuery, {
+              name: 'codetechify-repo',
+              owner: 'Codetechify',
+              states: ['OPEN'],
+              number: 2
+            });
 
-            await github.graphql(query, variables, headers);
+            return {
+              issueId: response.repository.issues.nodes[0].id,
+              projectId: response.repository.projectV2.id
+            };
+          }
+
+          run().then((data) => {
+            console.log(`::set-output name=issueId::${data.issueId}`);
+            console.log(`::set-output name=projectId::${data.projectId}`);
+          });
         env:
           CODETECHIFY_ACCESS_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
 
-      - name: Set issue status to Backlog
-        uses: actions/github-script@v5
-        with:
-          script: |
-            const githubToken = process.env.CODETECHIFY_ACCESS_TOKEN;
-            const headers = {
-              Authorization: `token ${githubToken}`,
-              "GraphQL-Features": "projects_next_graphql"
-            };
+      - name: Assign Project to Issue
+        run: |
+          const { graphql } = require("@octokit/graphql");
+          const graphqlWithAuth = graphql.defaults({
+            headers: {
+              authorization: `token ${process.env.CODETECHIFY_ACCESS_TOKEN}`,
+            },
+          });
 
-            const mutation = `
-              mutation ($itemId: ID!, $fieldId: ID!, $value: String!) {
-                updateProjectNextItemField(input: {itemId: $itemId, fieldId
+          const assignProjectMutation = `
+            mutation assignProjectToIssue($issueId: ID!, $projectId: ID!) {
+              addProjectV2ItemById(input: {projectId: $projectId, contentId: $issueId}) {
+                item {
+                  id
+                }
+              }
+            }
+          `;
+
+          graphqlWithAuth(assignProjectMutation, {
+            issueId: ${{ steps.get-ids.outputs.issueId }},
+            projectId: ${{ steps.get-ids.outputs.projectId }}
+          });
+        env:
+          CODETECHIFY_ACCESS_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
