@@ -9,17 +9,22 @@ jobs:
     if: github.event.label.name == 'feature'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v2
 
       - name: Add issue to project
         uses: actions/github-script@v5
         with:
-          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           script: |
+            const githubToken = process.env.CODETECHIFY_ACCESS_TOKEN;
+            const headers = {
+              Authorization: `token ${githubToken}`,
+              "GraphQL-Features": "projects_next_graphql"
+            };
+
             const query = `
-              mutation ($contentId: ID!, $projectId: ID!) {
-                addProjectNextItem(input: {contentId: $contentId, projectId: $projectId}) {
+              mutation ($projectId: ID!, $contentId: ID!) {
+                addProjectNextItem(input: {projectId: $projectId, contentId: $contentId}) {
                   projectNextItem {
                     id
                   }
@@ -27,10 +32,25 @@ jobs:
               }
             `;
 
-            const issueId = context.payload.issue.node_id;
-            const projectId = 'Globally unique project ID';  // Replace with the actual project ID
+            const variables = {
+              projectId: 2,  
+              contentId: context.payload.issue.node_id
+            };
 
-            await github.graphql(query, {
-              contentId: issueId,
-              projectId: projectId
-            });
+            await github.graphql(query, variables, headers);
+        env:
+          CODETECHIFY_ACCESS_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+
+      - name: Set issue status to Backlog
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const githubToken = process.env.CODETECHIFY_ACCESS_TOKEN;
+            const headers = {
+              Authorization: `token ${githubToken}`,
+              "GraphQL-Features": "projects_next_graphql"
+            };
+
+            const mutation = `
+              mutation ($itemId: ID!, $fieldId: ID!, $value: String!) {
+                updateProjectNextItemField(input: {itemId: $itemId, fieldId
