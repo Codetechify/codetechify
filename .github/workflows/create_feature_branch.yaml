@@ -1,25 +1,20 @@
-name: Issue Workflow
+name: Issue Status Workflow
 
 on:
-  workflow_dispatch: # or another event
+  issues:
+    types: [edited]
 
 jobs:
-  create-branch:
+  create-branch-on-status:
+    if: github.event.issue.projectV2 == 2 && github.event.issue.status == 'Doing'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v2
-
-      - name: Check Issue Status
-        id: check_status
+      - name: Create Feature Branch
         run: |
-          # Add script or command to check if the issue status is 'Doing'
-          # This will likely involve using GitHub's GraphQL API
-
-      - name: Create New Branch
-        if: steps.check_status.outputs.status == 'Doing'
-        run: |
-          ISSUE_TITLE=$(echo 'Your method to extract issue title')
-          BRANCH_NAME="feature/${ISSUE_TITLE// /-}"
-          git checkout -b $BRANCH_NAME
-          git push origin $BRANCH_NAME
+          FEATURE_NAME=$(echo "${{ github.event.issue.title }}" | tr ' ' '-')
+          git branch "feature/$FEATURE_NAME"
+          git push origin "feature/$FEATURE_NAME"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
