@@ -17,7 +17,6 @@ jobs:
         with:
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           script: |
-            const github = require('@actions/github');
             const query = `
               mutation ($contentId: ID!, $projectId: ID!) {
                 addProjectNextItem(input: {contentId: $contentId, projectId: $projectId}) {
@@ -28,14 +27,10 @@ jobs:
               }
             `;
 
-            const issueId = github.context.payload.issue.node_id;
+            const issueId = context.payload.issue.node_id;
             const projectId = 2; // Project number 2
 
-            // Note: The owner (Codetechify) and repo (codetechify-repo) are implicitly set in the context of the issue
             await github.graphql(query, {
               contentId: issueId,
-              projectId: projectId,
-              headers: {
-                authorization: `token ${process.env.CODETECHIFY_ACCESS_TOKEN}`
-              }
+              projectId: projectId
             });
