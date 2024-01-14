@@ -8,6 +8,8 @@ jobs:
   update-project-and-create-branch:
     if: github.event.label.name == 'doing'
     runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }} # Set the GH_TOKEN environment variable
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
