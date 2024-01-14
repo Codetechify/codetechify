@@ -9,78 +9,65 @@ jobs:
     if: github.event.label.name == 'doing'
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Set the GH_TOKEN environment variable
+      GITHUB_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Set up GitHub CLI
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-
       - name: Get last feature issue ID
+        id: get_last_issue
         run: |
-          LAST_ISSUE_ID=$(gh api graphql -f query='
-            query getLastIssueId($login: String!, $name: String!, $labels: [String!]) {
-              organization(login: $login) {
-                repository(name: $name) {
-                  issues(last: 1, labels: $labels) {
-                    nodes {
-                      id
-                    }
-                  }
-                  projectV2(number: 2) {
-                    id
-                    fields(first: 10) {
-                      nodes {
-                        ... on ProjectV2SingleSelectField {
-                          id
-                          name
-                          options {
+          QUERY='query getLastIssueId($login: String!, $name: String!, $labels: [String!]) {
+                    organization(login: $login) {
+                      repository(name: $name) {
+                        issues(last: 1, labels: $labels) {
+                          nodes {
                             id
-                            name
+                          }
+                        }
+                        projectV2(number: 2) {
+                          id
+                          fields(first: 10) {
+                            nodes {
+                              ... on ProjectV2SingleSelectField {
+                                id
+                                name
+                                options {
+                                  id
+                                  name
+                                }
+                              }
+                            }
+                          }
+                          items(first: 10) {
+                            nodes {
+                              id
+                              ...on ProjectV2Item {
+                                id
+                              }
+                            }
                           }
                         }
                       }
                     }
-                    items(first: 10) {
-                      nodes {
-                        id
-                        ...on ProjectV2Item {
-                          id
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          ' -f login=Codetechify -f name=codetechify-repo -f labels=["feature"] | jq -r '.data.organization.repository.issues.nodes[0].id')
+                  }'
+          LAST_ISSUE_ID=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/json" -X POST -d "{\"query\": \"$QUERY\", \"variables\": {\"login\": \"Codetechify\", \"name\": \"codetechify-repo\", \"labels\": [\"feature\"]}}" https://api.github.com/graphql | jq -r '.data.organization.repository.issues.nodes[0].id')
           echo "LAST_ISSUE_ID=$LAST_ISSUE_ID" >> $GITHUB_ENV
 
       - name: Update Project Status
         run: |
-          gh api graphql -f query='
-            mutation updateStatus($input: UpdateProjectV2ItemFieldValueInput!) {
-              updateProjectV2ItemFieldValue(input: $input) {
-                projectV2Item {
-                  id
-                }
-              }
-            }
-          ' -f input='{
-            "projectId": "PVT_kwDOCRRl0s4AamKs",
-            "fieldId": "PVTSSF_lADOCRRl0s4AamKszgREJyE",
-            "itemId": "${{ env.LAST_ISSUE_ID }}",
-            "value": {
-              "singleSelectOptionId": "47fc9ee4"
-            }
-          }'
+          MUTATION='mutation updateStatus($input: UpdateProjectV2ItemFieldValueInput!) {
+                      updateProjectV2ItemFieldValue(input: $input) {
+                        projectV2Item {
+                          id
+                        }
+                      }
+                    }'
+          curl -s -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/json" -X POST -d "{\"query\": \"$MUTATION\", \"variables\": {\"input\": {\"projectId\": \"PVT_kwDOCRRl0s4AamKs\", \"fieldId\": \"PVTSSF_lADOCRRl0s4AamKszgREJyE\", \"itemId\": \"${LAST_ISSUE_ID}\", \"value\": {\"singleSelectOptionId\": \"47fc9ee4\"}}}}" https://api.github.com/graphql
 
       - name: Create Branch
         run: |
-          ISSUE_NAME=$(gh issue view ${{ env.LAST_ISSUE_ID }} --json title -q .title)
+          ISSUE_NAME=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/Codetechify/codetechify-repo/issues/${LAST_ISSUE_ID} | jq -r '.title')
           BRANCH_NAME="feature/${ISSUE_NAME// /_}"
           git checkout -b $BRANCH_NAME
           git push origin $BRANCH_NAME
