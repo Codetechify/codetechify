@@ -9,7 +9,7 @@ jobs:
     if: github.event.label.name == 'doing'
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }} # Set the GH_TOKEN environment variable
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Set the GH_TOKEN environment variable
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
@@ -20,20 +20,19 @@ jobs:
           node-version: '16'
 
       - name: Get last feature issue ID
-        id: get_last_issue
         run: |
           LAST_ISSUE_ID=$(gh api graphql -f query='
-            query getLastIssueId($login: String!, $name: String!, $last: Int, $labels: [String!], $number: Int!, $first: Int, $first2: Int) {
+            query getLastIssueId($login: String!, $name: String!, $labels: [String!]) {
               organization(login: $login) {
                 repository(name: $name) {
-                  issues(last: $last, labels: $labels) {
+                  issues(last: 1, labels: $labels) {
                     nodes {
                       id
                     }
                   }
-                  projectV2(number: $number) {
+                  projectV2(number: 2) {
                     id
-                    fields(first: $first) {
+                    fields(first: 10) {
                       nodes {
                         ... on ProjectV2SingleSelectField {
                           id
@@ -45,7 +44,7 @@ jobs:
                         }
                       }
                     }
-                    items(first: $first2) {
+                    items(first: 10) {
                       nodes {
                         id
                         ...on ProjectV2Item {
@@ -57,7 +56,7 @@ jobs:
                 }
               }
             }
-          ' -f login=Codetechify -f name=codetechify-repo -f last=1 -f labels=["feature"] -f number=2 -f first=10 -f first2=10 | jq -r '.data.organization.repository.issues.nodes[0].id')
+          ' -f login=Codetechify -f name=codetechify-repo -f labels=["feature"] | jq -r '.data.organization.repository.issues.nodes[0].id')
           echo "LAST_ISSUE_ID=$LAST_ISSUE_ID" >> $GITHUB_ENV
 
       - name: Update Project Status
