@@ -1,26 +1,84 @@
-name: Create Feature Branch on Status Change
+name: Issue Automation Workflow
 
 on:
   issues:
-    types: [edited]
+    types: [labeled]
 
 jobs:
-  create-feature-branch:
+  process_issue:
+    if: github.event.label.name == 'doing'
     runs-on: ubuntu-latest
     steps:
+      # Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Create Feature Branch
-        if: github.event.issue.project_card.column_name == 'Doing' && github.event.issue.project_card.previous_column_name == 'Backlog'
+      # Create a new branch named after the issue title
+      - name: Create new branch
+        run: |
+          ISSUE_TITLE=$(echo "${{ github.event.issue.title }}" | sed -e "s/[^[:alnum:]]/-/g" | sed -e "s/^-//" | sed -e "s/-*$//")
+          BRANCH_NAME="feature/${ISSUE_TITLE,,}"
+          git config --global user.email "your-email@example.com"
+          git config --global user.name "Your Name"
+          git checkout -b $BRANCH_NAME
+          git push origin $BRANCH_NAME
+
+      # Fetch the Field ID for the 'Status' field
+      - name: Fetch Project Field ID
+        id: fetch_field
+        uses: octokit/graphql-action@v2.2.25
+        with:
+          query: |
+            query projectFields(
+              $name: String!
+              $owner: String!
+              $number: Int!
+              $fieldName2: String!
+            ) {
+              repository(name: $name, owner: $owner) {
+                projectV2(number: $number) {
+                  field(name: $fieldName2) {
+                    ... on ProjectV2SingleSelectField {
+                      id
+                    }
+                  }
+                }
+              }
+            }
+          variables: |
+            {
+              "name": "codetechify-repo",
+              "owner": "Codetechify",
+              "number": 2,
+              "fieldName2": "Status"
+            }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_TITLE: ${{ github.event.issue.title }}
-          ORG_NAME: Codetechify
-          REPO_NAME: codetechify-repo
-          PROJECT_NUMBER: 2
-        run: |
-          echo "Creating a new branch for the issue titled: $ISSUE_TITLE"
-          FEATURE_BRANCH_NAME=$(echo $ISSUE_TITLE | sed 's/ /-/g' | tr '[:upper:]' '[:lower:]')
-          git checkout -b feature/$FEATURE_BRANCH_NAME
-          git push origin feature/$FEATURE_BRANCH_NAME
+
+      # Update the Project v2 field status to "Doing"
+      - name: Update Project Status
+        if: steps.fetch_field.outputs.data
+        uses: octokit/graphql-action@v2.2.25
+        with:
+          query: |
+            mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: String!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $projectId
+                itemId: $itemId
+                fieldId: $fieldId
+                value: $value
+              }) {
+                projectV2Item {
+                  id
+                }
+              }
+            }
+          variables: |
+            {
+              "projectId": "your_project_node_id", # Replace with your actual project node ID
+              "itemId": "${{ github.event.issue.node_id }}",
+              "fieldId": "${{ fromJSON(steps.fetch_field.outputs.data).repository.projectV2.field.id }}",
+              "value": "Doing" # The value you want to set
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
