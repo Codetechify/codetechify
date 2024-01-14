@@ -35,7 +35,6 @@ jobs:
             const variables = {
               name: 'codetechify-repo',
               owner: 'Codetechify',
-              states: ["OPEN"],
               number: 2
             };
             const result = await github.graphql(query, variables);
