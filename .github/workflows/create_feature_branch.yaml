@@ -1,4 +1,4 @@
-name: Update Project Status and Create Branch
+name: Update Status and Create Branch
 
 on:
   issues:
@@ -7,12 +7,16 @@ on:
 jobs:
   update-status-and-create-branch:
     runs-on: ubuntu-latest
-    if: github.event.label.name == 'doing'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
 
-      - name: Fetch Necessary IDs and Update Project Status
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          repository: Codetechify/codetechify-repo
+          token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+          persist-credentials: true
+
+      - name: Update Status in Project
         uses: actions/github-script@v6
         with:
           script: |
@@ -47,8 +51,7 @@ jobs:
                     }
                   }
                 }
-              }
-            `;
+              }`;
             const variables = {
               "login": "Codetechify",
               "name": "codetechify-repo",
@@ -65,14 +68,13 @@ jobs:
             const statusOptionId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').options.find(option => option.name === 'Doing').id;
 
             const mutation = `
-              mutation updateStatus($input: UpdateProjectV2ItemFieldValueInput!) {
-                updateProjectV2ItemFieldValue(input: $input) {
-                  projectV2Item {
-                    id
-                  }
+            mutation updateStatus($input: UpdateProjectV2ItemFieldValueInput!) {
+              updateProjectV2ItemFieldValue(input: $input) {
+                projectV2Item {
+                  id
                 }
               }
-            `;
+            }`;
             const mutationVariables = {
               "input": {
                 "projectId": projectId,
@@ -84,9 +86,9 @@ jobs:
               }
             };
             await github.graphql(mutation, mutationVariables);
-          github-token: ${{secrets.CODETECHIFY_ACCESS_TOKEN }}
+          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
 
-      - name: Create Branch
+      - name: Create Feature Branch
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
