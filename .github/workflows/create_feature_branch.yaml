@@ -1,88 +1,85 @@
-name: Issue Automation Workflow
+name: Workflow for Issue Updates
 
 on:
   issues:
     types: [labeled]
 
-permissions:
-  contents: write
-  issues: write
-
 jobs:
-  process_issue:
+  update-project-and-create-branch:
     if: github.event.label.name == 'doing'
     runs-on: ubuntu-latest
     steps:
-      # Checkout the repository
-      - name: Checkout repository
-        uses: actions/checkout@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-      # Create a new branch named after the issue title
-      - name: Create new branch
+      - name: Set up GitHub CLI
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Get last feature issue ID
+        id: get_last_issue
         run: |
-          ISSUE_TITLE=$(echo "${{ github.event.issue.title }}" | sed -e "s/[^[:alnum:]]/-/g" | sed -e "s/^-//" | sed -e "s/-*$//")
-          BRANCH_NAME="feature/${ISSUE_TITLE,,}"
-          git checkout -b $BRANCH_NAME
-          git push origin $BRANCH_NAME
-
-      # Fetch the Field ID for the 'Status' field
-      - name: Fetch Project Field ID
-        id: fetch_field
-        uses: octokit/graphql-action@v2.2.25
-        with:
-          query: |
-            query projectFields(
-              $name: String!
-              $owner: String!
-              $number: Int!
-              $fieldName2: String!
-            ) {
-              repository(name: $name, owner: $owner) {
-                projectV2(number: $number) {
-                  field(name: $fieldName2) {
-                    ... on ProjectV2SingleSelectField {
+          LAST_ISSUE_ID=$(gh api graphql -f query='
+            query getLastIssueId($login: String!, $name: String!, $last: Int, $labels: [String!], $number: Int!, $first: Int, $first2: Int) {
+              organization(login: $login) {
+                repository(name: $name) {
+                  issues(last: $last, labels: $labels) {
+                    nodes {
                       id
+                    }
+                  }
+                  projectV2(number: $number) {
+                    id
+                    fields(first: $first) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          name
+                          options {
+                            id
+                            name
+                          }
+                        }
+                      }
+                    }
+                    items(first: $first2) {
+                      nodes {
+                        id
+                        ...on ProjectV2Item {
+                          id
+                        }
+                      }
                     }
                   }
                 }
               }
             }
-          variables: |
-            {
-              "name": "codetechify-repo", # Replace with your actual repository name
-              "owner": "Codetechify", # Replace with your actual owner name
-              "number": 2, # Replace with your actual project number
-              "fieldName2": "Status" # Replace with your actual field name
-            }
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ' -f login=Codetechify -f name=codetechify-repo -f last=1 -f labels=["feature"] -f number=2 -f first=10 -f first2=10 | jq -r '.data.organization.repository.issues.nodes[0].id')
+          echo "LAST_ISSUE_ID=$LAST_ISSUE_ID" >> $GITHUB_ENV
 
-      # Update the Project v2 field status to "Doing"
       - name: Update Project Status
-        if: steps.fetch_field.outputs.data
-        uses: octokit/graphql-action@v2.2.25
-        with:
-          query: |
-            mutation UpdateProjectField($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: String!) {
-              updateProjectV2ItemFieldValue(input: {
-                projectId: $projectId
-                itemId: $itemId
-                fieldId: $fieldId
-                value: $value
-              }) {
+        run: |
+          gh api graphql -f query='
+            mutation updateStatus($input: UpdateProjectV2ItemFieldValueInput!) {
+              updateProjectV2ItemFieldValue(input: $input) {
                 projectV2Item {
                   id
                 }
               }
             }
-          variables: |
-            {
-              "projectId": "your_project_node_id", # Replace with your actual project node ID
-              "itemId": "${{ github.event.issue.node_id }}",
-              "fieldId": "${{ fromJSON(steps.fetch_field.outputs.data).repository.projectV2.field.id }}",
-              "value": "Doing" # The value you want to set
+          ' -f input='{
+            "projectId": "PVT_kwDOCRRl0s4AamKs",
+            "fieldId": "PVTSSF_lADOCRRl0s4AamKszgREJyE",
+            "itemId": "${{ env.LAST_ISSUE_ID }}",
+            "value": {
+              "singleSelectOptionId": "47fc9ee4"
             }
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          }'
+
+      - name: Create Branch
+        run: |
+          ISSUE_NAME=$(gh issue view ${{ env.LAST_ISSUE_ID }} --json title -q .title)
+          BRANCH_NAME="feature/${ISSUE_NAME// /_}"
+          git checkout -b $BRANCH_NAME
+          git push origin $BRANCH_NAME
