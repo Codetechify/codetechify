@@ -1,73 +1,166 @@
-name: Workflow for Issue Updates
+name: Update Project Status and Create Branch
 
 on:
   issues:
     types: [labeled]
 
 jobs:
-  update-project-and-create-branch:
-    if: github.event.label.name == 'doing'
+  update-status-and-create-branch:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+    if: github.event.label.name == 'doing'
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v2
 
-      - name: Get last feature issue ID
-        id: get_last_issue
-        run: |
-          QUERY='query getLastIssueId($login: String!, $name: String!, $labels: [String!]) {
-                    organization(login: $login) {
-                      repository(name: $name) {
-                        issues(last: 1, labels: $labels) {
-                          nodes {
-                            id
-                          }
-                        }
-                        projectV2(number: 2) {
+      - name: Fetch Necessary IDs
+        uses: octokit/graphql-action@v2.x
+        id: fetch_ids
+        with:
+          query: |
+            query getNecessaryIds($login: String!, $name: String!, $last: Int, $labels: [String!], $number: Int!, $first: Int, $first2: Int) {
+              organization(login: $login) {
+                repository(name: $name) {
+                  issues(last: $last, labels: $labels) {
+                    nodes {
+                      id
+                    }
+                  }
+                  projectV2(number: $number) {
+                    id
+                    fields(first: $first) {
+                      nodes {
+                        ... on ProjectV2SingleSelectField {
                           id
-                          fields(first: 10) {
-                            nodes {
-                              ... on ProjectV2SingleSelectField {
-                                id
-                                name
-                                options {
-                                  id
-                                  name
-                                }
-                              }
-                            }
-                          }
-                          items(first: 10) {
-                            nodes {
-                              id
-                              ...on ProjectV2Item {
-                                id
-                              }
-                            }
+                          name
+                          options {
+                            id
+                            name
                           }
                         }
                       }
                     }
-                  }'
-          LAST_ISSUE_ID=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/json" -X POST -d "{\"query\": \"$QUERY\", \"variables\": {\"login\": \"Codetechify\", \"name\": \"codetechify-repo\", \"labels\": [\"feature\"]}}" https://api.github.com/graphql | jq -r '.data.organization.repository.issues.nodes[0].id')
-          echo "LAST_ISSUE_ID=$LAST_ISSUE_ID" >> $GITHUB_ENV
+                    items(first: $first2) {
+                      nodes {
+                        id
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          variables: |
+            {
+              "login": "Codetechify",
+              "name": "codetechify-repo",
+              "last": 1,
+              "labels": ["feature"],
+              "number": 2,
+              "first": 10,
+              "first2": 10
+            }
+          token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
 
       - name: Update Project Status
-        run: |
-          MUTATION='mutation updateStatus($input: UpdateProjectV2ItemFieldValueInput!) {
-                      updateProjectV2ItemFieldValue(input: $input) {
-                        projectV2Item {
-                          id
-                        }
-                      }
-                    }'
-          curl -s -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/json" -X POST -d "{\"query\": \"$MUTATION\", \"variables\": {\"input\": {\"projectId\": \"PVT_kwDOCRRl0s4AamKs\", \"fieldId\": \"PVTSSF_lADOCRRl0s4AamKszgREJyE\", \"itemId\": \"${LAST_ISSUE_ID}\", \"value\": {\"singleSelectOptionId\": \"47fc9ee4\"}}}}" https://api.github.com/graphql
+        uses: octokit/graphql-action@v2.x
+        with:
+          query: |
+            mutation updateStatus($input: Update
+            GPT
+            The error you encountered, "Invalid action input 'github-token'," suggests there's an issue with the way the GitHub token is being used in the workflow. In the GitHub Actions workflow, when using actions that interact with the GitHub API, you typically use the secrets.GITHUB_TOKEN which is automatically created by GitHub for each repository. This token is used to authenticate in a workflow run.
 
-      - name: Create Branch
-        run: |
-          ISSUE_NAME=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/Codetechify/codetechify-repo/issues/${LAST_ISSUE_ID} | jq -r '.title')
-          BRANCH_NAME="feature/${ISSUE_NAME// /_}"
-          git checkout -b $BRANCH_NAME
-          git push origin $BRANCH_NAME
+            However, since you are using a custom secret token (secrets.CODETECHIFY_ACCESS_TOKEN), it's important to ensure this secret is properly set in your repository's secrets settings. Also, the usage of the token in the workflow steps needs to be correctly formatted.
+
+            Let's modify the workflow to correct this issue:
+
+            yaml
+            Copy code
+            name: Update Project Status and Create Branch
+
+            on:
+              issues:
+                types: [labeled]
+
+            jobs:
+              update-status-and-create-branch:
+                runs-on: ubuntu-latest
+                if: github.event.label.name == 'doing'
+                steps:
+                  - name: Checkout
+                    uses: actions/checkout@v2
+
+                  - name: Fetch Necessary IDs
+                    uses: octokit/graphql-action@v2.x
+                    id: fetch_ids
+                    with:
+                      query: |
+                        query getNecessaryIds($login: String!, $name: String!, $last: Int, $labels: [String!], $number: Int!, $first: Int, $first2: Int) {
+                          organization(login: $login) {
+                            repository(name: $name) {
+                              issues(last: $last, labels: $labels) {
+                                nodes {
+                                  id
+                                }
+                              }
+                              projectV2(number: $number) {
+                                id
+                                fields(first: $first) {
+                                  nodes {
+                                    ... on ProjectV2SingleSelectField {
+                                      id
+                                      name
+                                      options {
+                                        id
+                                        name
+                                      }
+                                    }
+                                  }
+                                }
+                                items(first: $first2) {
+                                  nodes {
+                                    id
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      variables: |
+                        {
+                          "login": "Codetechify",
+                          "name": "codetechify-repo",
+                          "last": 1,
+                          "labels": ["feature"],
+                          "number": 2,
+                          "first": 10,
+                          "first2": 10
+                        }
+                      token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+
+                  - name: Update Project Status
+                    uses: octokit/graphql-action@v2.x
+                    with:
+                      query: |
+                        mutation updateStatus($input: Update
+            ProjectV2ItemFieldValueInput!) {
+            updateProjectV2ItemFieldValue(input: $input) {
+            projectV2Item {
+            id
+            }
+            }
+            }
+            variables: |
+            {
+            "input": {
+            "projectId": "PVT_kwDOCRRl0s4AamKs",
+            "fieldId": "PVTSSF_lADOCRRl0s4AamKszgREJyE",
+            "itemId": "${{ fromJson(steps.fetch_ids.outputs.data).organization.repository.projectV2.items.nodes[0].id }}",
+            "value": {
+            "singleSelectOptionId": "47fc9ee4"
+            }
+            }
+            }
+            token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+            - name: Create Branch
+            run: |
+              git checkout -b feature/${{ github.event.issue.title }}
+              git push origin feature/${{ github.event.issue.title }}
