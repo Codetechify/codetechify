@@ -12,9 +12,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Fetch Necessary IDs
+      - name: Fetch Necessary IDs and Update Project Status
         uses: actions/github-script@v6
-        id: fetch_ids
         with:
           script: |
             const query = `
@@ -53,20 +52,20 @@ jobs:
             const variables = {
               "login": "Codetechify",
               "name": "codetechify-repo",
-              "last": 1,
+              "
+              last": 1,
               "labels": ["feature"],
               "number": 2,
               "first": 10,
               "first2": 10
-            };
-            const result = await github.graphql(query, variables);
-            return result.organization.repository.projectV2.items.nodes[0].id;
+              };
+              const result = await github.graphql(query, variables);
+              const projectId = result.organization.repository.projectV2.id;
+              const fieldId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').id;
+              const itemId = result.organization.repository.projectV2.items.nodes[0].id;
+              const statusOptionId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').options.find(option => option.name === 'Doing').id;
 
-      - name: Update Project Status
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const mutation = `
+              const mutation = `
               mutation updateStatus($input: UpdateProjectV2ItemFieldValueInput!) {
                 updateProjectV2ItemFieldValue(input: $input) {
                   projectV2Item {
@@ -75,20 +74,23 @@ jobs:
                 }
               }
             `;
-            const variables = {
+            const mutationVariables = {
               "input": {
-                "projectId": "PVT_kwDOCRRl0s4AamKs",
-                "fieldId": "PVTSSF_lADOCRRl0s4AamKszgREJyE",
-                "itemId": "${{ steps.fetch_ids.outputs.result }}",
+                "projectId": projectId,
+                "fieldId": fieldId,
+                "itemId": itemId,
                 "value": {
-                  "singleSelectOptionId": "47fc9ee4"
+                  "singleSelectOptionId": statusOptionId
                 }
               }
             };
-            await github.graphql(mutation, variables);
+            await github.graphql(mutation, mutationVariables);
+          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
 
       - name: Create Branch
         run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
           git checkout -b feature/${{ github.event.issue.title }}
           git push origin feature/${{ github.event.issue.title }}
         env:
