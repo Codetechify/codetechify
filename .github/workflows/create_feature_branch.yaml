@@ -4,6 +4,10 @@ on:
   issues:
     types: [labeled]
 
+permissions:
+  contents: write
+  issues: write
+
 jobs:
   process_issue:
     if: github.event.label.name == 'doing'
@@ -12,14 +16,14 @@ jobs:
       # Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # Create a new branch named after the issue title
       - name: Create new branch
         run: |
           ISSUE_TITLE=$(echo "${{ github.event.issue.title }}" | sed -e "s/[^[:alnum:]]/-/g" | sed -e "s/^-//" | sed -e "s/-*$//")
           BRANCH_NAME="feature/${ISSUE_TITLE,,}"
-          git config --global user.email "your-email@example.com"
-          git config --global user.name "Your Name"
           git checkout -b $BRANCH_NAME
           git push origin $BRANCH_NAME
 
@@ -47,10 +51,10 @@ jobs:
             }
           variables: |
             {
-              "name": "codetechify-repo",
-              "owner": "Codetechify",
-              "number": 2,
-              "fieldName2": "Status"
+              "name": "codetechify-repo", # Replace with your actual repository name
+              "owner": "Codetechify", # Replace with your actual owner name
+              "number": 2, # Replace with your actual project number
+              "fieldName2": "Status" # Replace with your actual field name
             }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
