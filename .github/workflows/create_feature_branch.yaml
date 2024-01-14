@@ -90,8 +90,8 @@ jobs:
 
       - name: Create Feature Branch
         run: |
-          $branchName = "${{ github.event.issue.title }}".replace(/\s+/g, '_');
+          branchName=$(echo "${{ github.event.issue.title }}" | sed 's/ /_/g')
           git checkout -b feature/$branchName
           git push origin feature/$branchName
-        env:
-          GITHUB_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+          env:
+            GITHUB_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
