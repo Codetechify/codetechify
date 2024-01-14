@@ -7,6 +7,7 @@ on:
 jobs:
   update-status-and-create-branch:
     runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'feature') && contains(github.event.issue.labels.*.name, 'doing')
 
     steps:
       - name: Checkout Repository
@@ -66,7 +67,6 @@ jobs:
             const fieldId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').id;
             const itemId = result.organization.repository.projectV2.items.nodes[0].id;
             const statusOptionId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').options.find(option => option.name === 'Doing').id;
-
             const mutation = `
             mutation updateStatus($input: UpdateProjectV2ItemFieldValueInput!) {
               updateProjectV2ItemFieldValue(input: $input) {
