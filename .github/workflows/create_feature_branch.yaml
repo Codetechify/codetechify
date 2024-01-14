@@ -90,9 +90,7 @@ jobs:
 
       - name: Create Feature Branch
         run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git checkout -b feature/${{ github.event.issue.title }}
-          git push origin feature/${{ github.event.issue.title }}
+          git checkout -b "feature/${{ github.event.issue.title }}"
+          git push origin "feature/${{ github.event.issue.title }}"
         env:
           GITHUB_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
