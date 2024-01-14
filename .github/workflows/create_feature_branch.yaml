@@ -52,20 +52,19 @@ jobs:
             const variables = {
               "login": "Codetechify",
               "name": "codetechify-repo",
-              "
-              last": 1,
+              "last": 1,
               "labels": ["feature"],
               "number": 2,
               "first": 10,
               "first2": 10
-              };
-              const result = await github.graphql(query, variables);
-              const projectId = result.organization.repository.projectV2.id;
-              const fieldId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').id;
-              const itemId = result.organization.repository.projectV2.items.nodes[0].id;
-              const statusOptionId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').options.find(option => option.name === 'Doing').id;
+            };
+            const result = await github.graphql(query, variables);
+            const projectId = result.organization.repository.projectV2.id;
+            const fieldId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').id;
+            const itemId = result.organization.repository.projectV2.items.nodes[0].id;
+            const statusOptionId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').options.find(option => option.name === 'Doing').id;
 
-              const mutation = `
+            const mutation = `
               mutation updateStatus($input: UpdateProjectV2ItemFieldValueInput!) {
                 updateProjectV2ItemFieldValue(input: $input) {
                   projectV2Item {
@@ -85,7 +84,7 @@ jobs:
               }
             };
             await github.graphql(mutation, mutationVariables);
-          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+          github-token: ${{secrets.CODETECHIFY_ACCESS_TOKEN }}
 
       - name: Create Branch
         run: |
