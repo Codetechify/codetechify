@@ -23,7 +23,7 @@ jobs:
           github_token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           pr_title: '${{ github.event.head_commit.message }}'
           pr_body: 'Pull request generated from issue.'
-          pr_reviewer: 'Consciously'
+          # pr_reviewer: 'Consciously'
 
       - name: Update Status to Pending Review
         uses: actions/github-script@v6
@@ -94,4 +94,43 @@ jobs:
               }
             };
             await github.graphql(mutation, mutationVariables);
+          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+      - name: Update Issue Label and Number Field
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issueNumber = context.payload.pull_request.number; // Assuming the issue number is the same as the PR number
+            const owner = 'Codetechify';
+            const repo = 'codetechify-repo';
+
+            // Fetch issue details
+            const issue = await github.rest.issues.get({
+              owner,
+              repo,
+              issue_number: issueNumber,
+            });
+
+            // Remove 'doing' label and add 'isReviewing' label
+            const labels = issue.data.labels
+              .filter(label => label.name !== 'doing')
+              .map(label => label.name);
+            labels.push('isReviewing');
+
+            // Update issue labels
+            await github.rest.issues.update({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              labels,
+            });
+
+            // Update custom number field (replace 'customFieldName' with your field's name)
+            const customFieldId = 'your-custom-field-id'; // Replace with your field's ID
+            const customFieldValue = 123; // Replace with the value you want to set
+            await github.rest.issues.update({
+              owner,
+              repo,
+              issue_number: issueNumber,
+              custom_fields: [{ id: customFieldId, value: customFieldValue }],
+            });
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
