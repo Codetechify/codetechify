@@ -36,6 +36,7 @@ jobs:
                     issues(last: $last, labels: $labels) {
                       nodes {
                         id
+                        number
                       }
                     }
                     projectV2(number: $number) {
