@@ -23,7 +23,7 @@ jobs:
           github_token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           pr_title: '${{ github.event.head_commit.message }}'
           pr_body: 'Pull request generated from issue.'
-          pr_reviewer: 'Consciously'
+          # pr_reviewer: 'Consciously'
 
       - name: Update Status to Pending Review
         uses: actions/github-script@v6
