@@ -1,0 +1,121 @@
+name: Create Pull Request and Update Status
+
+on:
+  push:
+    branches:
+      - 'feature/*'
+
+jobs:
+  create-pull-request-and-update-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          repository: Codetechify/codetechify-repo
+          token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+          persist-credentials: true
+
+      - name: Create Pull Request
+        uses: repo-sync/pull-request@v2
+        with:
+          destination_branch: 'dev'
+          github_token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+          pr_title: '${{ github.event.head_commit.message }}'
+          pr_body: 'Pull request generated from issue.'
+          # pr_reviewer: 'Consciously'
+
+      - name: Remove 'doing' Label
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              name: 'doing'
+            })
+
+      - name: Add 'isReviewing' Label
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: ['isReviewing']
+            })
+
+      - name: Update Status to Pending Review
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const query = `
+              query getNecessaryIds($login: String!, $name: String!, $last: Int, $labels: [String!], $number: Int!, $first: Int, $first2: Int) {
+                organization(login: $login) {
+                  repository(name: $name) {
+                    issues(last: $last, labels: $labels) {
+                      nodes {
+                        id
+                      }
+                    }
+                    projectV2(number: $number) {
+                      id
+                      fields(first: $first) {
+                        nodes {
+                          ... on ProjectV2SingleSelectField {
+                            id
+                            name
+                            options {
+                              id
+                              name
+                            }
+                          }
+                        }
+                      }
+                      items(first: $first2) {
+                        nodes {
+                          id
+                        }
+                      }
+                    }
+                  }
+                }
+              }`;
+            const variables = {
+              "login": "Codetechify",
+              "name": "codetechify-repo",
+              "last": 1,
+              "labels": ["feature"],
+              "number": 2,
+              "first": 10,
+              "first2": 10
+            };
+            const result = await github.graphql(query, variables);
+            const projectId = result.organization.repository.projectV2.id;
+            const fieldId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').id;
+            const itemId = result.organization.repository.projectV2.items.nodes[0].id;
+            const statusOptionId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').options.find(option => option.name === 'Pending to Review').id;
+            const mutation = `
+            mutation updateStatus($input: UpdateProjectV2ItemFieldValueInput!) {
+              updateProjectV2ItemFieldValue(input: $input) {
+                projectV2Item {
+                  id
+                }
+              }
+            }`;
+            const mutationVariables = {
+              "input": {
+                "projectId": projectId,
+                "fieldId": fieldId,
+                "itemId": itemId,
+                "value": {
+                  "singleSelectOptionId": statusOptionId
+                }
+              }
+            };
+            await github.graphql(mutation, mutationVariables);
+          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
