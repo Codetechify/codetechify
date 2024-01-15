@@ -1,13 +1,14 @@
-name: Create Pull Request and Update Label
+name: Create Pull Request and Update Status
 
 on:
-  push:
-    branches:
-      - 'feature/*'
+  issues:
+    types: [labeled]
 
 jobs:
-  create-pull-request-and-update-label:
+  create-pull-request-and-update-status:
     runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'feature') && contains(github.event.issue.labels.*.name, 'doing')
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
@@ -15,74 +16,106 @@ jobs:
           token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           persist-credentials: true
 
-      - name: Extract Feature Branch Name
-        run: echo "feature_branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+      - name: Create Pull Request
+        uses: repo-sync/pull-request@v2
+        with:
+          destination_branch: 'dev'
+          github_token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+          pr_title: '${{ github.event.head_commit.message }}'
+          pr_body: 'Pull request generated from issue.'
+          # pr_reviewer: 'Consciously'
 
-      - name: Check if Pull Request Exists
-        id: check-pr
+      - name: Remove 'doing' Label
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              name: 'doing'
+            })
+
+      - name: Add 'isReviewing' Label
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: ['isReviewing']
+            })
+
+      - name: Update Status to Pending Review
         uses: actions/github-script@v6
         with:
           script: |
-            const result = await github.graphql(`
-              query ($repo: String!, $owner: String!, $branch: String!) {
-                repository(name: $repo, owner: $owner) {
-                  pullRequests(first: 1, states: OPEN, headRefName: $branch) {
-                    nodes {
+            const query = `
+              query getNecessaryIds($login: String!, $name: String!, $last: Int, $labels: [String!], $number: Int!, $first: Int, $first2: Int) {
+                organization(login: $login) {
+                  repository(name: $name) {
+                    issues(last: $last, labels: $labels) {
+                      nodes {
+                        id
+                      }
+                    }
+                    projectV2(number: $number) {
                       id
+                      fields(first: $first) {
+                        nodes {
+                          ... on ProjectV2SingleSelectField {
+                            id
+                            name
+                            options {
+                              id
+                              name
+                            }
+                          }
+                        }
+                      }
+                      items(first: $first2) {
+                        nodes {
+                          id
+                        }
+                      }
                     }
                   }
                 }
+              }`;
+            const variables = {
+              "login": "Codetechify",
+              "name": "codetechify-repo",
+              "last": 1,
+              "labels": ["feature"],
+              "number": 2,
+              "first": 10,
+              "first2": 10
+            };
+            const result = await github.graphql(query, variables);
+            const projectId = result.organization.repository.projectV2.id;
+            const fieldId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').id;
+            const itemId = result.organization.repository.projectV2.items.nodes[0].id;
+            const statusOptionId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').options.find(option => option.name === 'Pending to Review').id;
+            const mutation = `
+            mutation updateStatus($input: UpdateProjectV2ItemFieldValueInput!) {
+              updateProjectV2ItemFieldValue(input: $input) {
+                projectV2Item {
+                  id
+                }
               }
-            `, {
-              repo: context.repo.repo,
-              owner: context.repo.owner,
-              branch: "${{ env.feature_branch }}"
-            });
-            const prExists = result.repository.pullRequests.nodes.length > 0;
-            core.setOutput('exists', prExists);
-          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
-
-      - name: Create Pull Request
-        if: steps.check-pr.outputs.exists == 'false'
-        uses: repo-sync/pull-request@v2
-        with:
-          github_token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
-          pr_title: 'Pull Request for ${GITHUB_REF#refs/heads/}'
-          pr_body: 'Automatically generated pull request.'
-          source_branch: '${{ env.feature_branch }}'
-          destination_branch: 'main'
-
-      - name: Replace Label and Link PR to Issue
-        if: steps.check-pr.outputs.exists == 'true'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const issueNumberRegex = /(\d+)/;
-            const branchName = "${{ env.feature_branch }}";
-            const issueNumberMatch = branchName.match(issueNumberRegex);
-            if (issueNumberMatch) {
-              const issueNumber = parseInt(issueNumberMatch[0], 10);
-              
-              const labelsResponse = await github.issues.listLabelsOnIssue({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber
-              });
-
-              const hasIsReviewing = labelsResponse.data.some(label => label.name === 'isReviewing');
-              if (!hasIsReviewing) {
-                await github.issues.removeLabel({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issueNumber,
-                  name: 'doing'
-                });
-                await github.issues.addLabels({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issueNumber,
-                  labels: ['isReviewing']
-                });
+            }`;
+            const mutationVariables = {
+              "input": {
+                "projectId": projectId,
+                "fieldId": fieldId,
+                "itemId": itemId,
+                "value": {
+                  "singleSelectOptionId": statusOptionId
+                }
               }
-            }
+            };
+            await github.graphql(mutation, mutationVariables);
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
