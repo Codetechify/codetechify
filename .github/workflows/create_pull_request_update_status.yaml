@@ -15,11 +15,6 @@ jobs:
           token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           persist-credentials: true
 
-      - name: Setup Git Identity
-        run: |
-          git config user.name 'GitHub Actions'
-          git config user.email 'actions@github.com'
-
       - name: Slugify Issue Title
         id: slugify
         run: echo "slugified_title=$(echo ${{ github.event.issue.title }} | sed 's/ /_/g' | tr -cd '[[:alnum:]]._-')" >> $GITHUB_ENV
@@ -31,7 +26,7 @@ jobs:
           pr_title: 'Pull Request for Issue #${{ github.event.issue.number }}'
           pr_body: 'Automatically generated pull request.'
           source_branch: 'feature/${{ env.slugified_title }}'
-          destination_branch: 'main'
+          destination_branch: 'dev'
         if: steps.check-pr.outputs.exists != 'true'
 
       - name: Check if Pull Request Exists
