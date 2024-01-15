@@ -1,14 +1,15 @@
-name: Update Status and Create Branch
+name: Branch Management and Pull Request
 
 on:
   issues:
     types: [labeled]
+  push:
+    branches:
+      - 'feature/*'
 
 jobs:
-  update-status-and-create-branch:
+  manage-branch-and-pr:
     runs-on: ubuntu-latest
-    if: contains(github.event.issue.labels.*.name, 'feature') && contains(github.event.issue.labels.*.name, 'doing')
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
@@ -19,11 +20,11 @@ jobs:
           ref: main
 
       - name: Set Branch Name
-        id: branch-name
+        if: github.event_name == 'issues'
         run: echo "BRANCH_NAME=$(echo '${{ github.event.issue.title }}' | tr ' ' '_')" >> $GITHUB_ENV
 
       - name: Check if Feature Branch Exists
-        id: check-branch
+        if: github.event_name == 'issues'
         run: |
           if git ls-remote --heads origin feature/${{ env.BRANCH_NAME }}; then
             echo "Branch exists, skipping creation."
@@ -32,6 +33,7 @@ jobs:
             echo "Branch does not exist."
             echo "::set-output name=exists::false"
           fi
+        id: check-branch
 
       - name: Create Feature Branch
         if: steps.check-branch.outputs.exists == 'false'
@@ -42,11 +44,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
 
       - name: Get Current Issue Number
-        id: get-issue-number
+        if: github.event_name == 'issues' && steps.check-branch.outputs.exists == 'true'
         run: echo "::set-output name=number::${{ github.event.issue.number }}"
+        id: get-issue-number
 
       - name: Replace Label on Issue
-        if: steps.check-branch.outputs.exists == 'true'
+        if: github.event_name == 'issues' && steps.check-branch.outputs.exists == 'true'
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
@@ -63,3 +66,109 @@ jobs:
               issue_number: ${{ steps.get-issue-number.outputs.number }},
               labels: ['isReviewing']
             });
+
+      - name: Create Pull Request
+        if: github.event_name == 'push'
+        uses: repo-sync/pull-request@v2
+        with:
+          destination_branch: 'dev'
+          github_token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+          pr_title: '${{ github.event.head_commit.message }}'
+          pr_body: 'Pull request generated from issue.'
+
+      - name: Remove 'doing' Label
+        if: github.event_name == 'push'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.removeLabel({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.payload.pull_request.number,
+            name: 'doing'
+            })
+      - name: Add 'isReviewing' Label
+        if: github.event_name == 'push'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: ['isReviewing']
+            })
+
+      - name: Update Status to Pending Review
+        if: github.event_name == 'push'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+          script: |
+            const query = `
+              query getNecessaryIds($login: String!, $name: String!, $last: Int, $labels: [String!], $number: Int!, $first: Int, $first2: Int) {
+                organization(login: $login) {
+                  repository(name: $name) {
+                    issues(last: $last, labels: $labels) {
+                      nodes {
+                        id
+                      }
+                    }
+                    projectV2(number: $number) {
+                      id
+                      fields(first: $first) {
+                        nodes {
+                          ... on ProjectV2SingleSelectField {
+                            id
+                            name
+                            options {
+                              id
+                              name
+                            }
+                          }
+                        }
+                      }
+                      items(first: $first2) {
+                        nodes {
+                          id
+                        }
+                      }
+                    }
+                  }
+                }
+              }`;
+            const variables = {
+              "login": "Codetechify",
+              "name": "codetechify-repo",
+              "last": 1,
+              "labels": ["feature"],
+              "number": 2,
+              "first": 10,
+              "first2": 10
+            };
+            const result = await github.graphql(query, variables);
+            const projectId = result.organization.repository.projectV2.id;
+            const fieldId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').id;
+            const itemId = result.organization.repository.projectV2.items.nodes[0].id;
+            const statusOptionId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').options.find(option => option.name === 'Pending to Review').id;
+            const mutation = `
+            mutation updateStatus($input: UpdateProjectV2ItemFieldValueInput!) {
+              updateProjectV2ItemFieldValue(input: $input) {
+                projectV2Item {
+                  id
+                }
+              }
+            }`;
+            const mutationVariables = {
+              "input": {
+                "projectId": projectId,
+                "fieldId": fieldId,
+                "itemId": itemId,
+                "value": {
+                  "singleSelectOptionId": statusOptionId
+                }
+              }
+            };
+            await github.graphql(mutation, mutationVariables);
