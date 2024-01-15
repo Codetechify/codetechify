@@ -12,53 +12,53 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v2
         with:
-          token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           persist-credentials: true
 
-      - name: Slugify Issue Title
-        id: slugify
-        run: echo "slugified_title=$(echo ${{ github.event.issue.title }} | sed 's/ /_/g' | tr -cd '[[:alnum:]]._-')" >> $GITHUB_ENV
+      # Assuming the branch name itself is a slugified version of the issue title
+      - name: Extract Feature Branch Name
+        run: echo "feature_branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+
       - name: Create Pull Request
         id: create-pr
         uses: repo-sync/pull-request@v2
         with:
           github_token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
-          pr_title: 'Pull Request for Issue #${{ github.event.issue.number }}'
+          pr_title: 'Pull Request for ${GITHUB_REF#refs/heads/}'
           pr_body: 'Automatically generated pull request.'
-          source_branch: 'feature/${{ env.slugified_title }}'
+          source_branch: '${{ env.feature_branch }}'
           destination_branch: 'dev'
         if: steps.check-pr.outputs.exists != 'true'
 
       - name: Check if Pull Request Exists
         id: check-pr
         run: |
-          result=$(gh pr list --head "feature/${{ env.slugified_title }}" | wc -l)
+          result=$(gh pr list --head "${{ env.feature_branch }}" | wc -l)
           echo "exists=$(if [ $result -gt 0 ]; then echo 'true'; else echo 'false'; fi)" >> $GITHUB_ENV
-
-      - name: Replace Label
-        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/${{ env.slugified_title }}'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const issueNumber = ${{ github.event.issue.number }};
-            const labels = await github.issues.listLabelsOnIssue({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issueNumber
-            });
-            const hasIsReviewing = labels.data.some(label => label.name === 'isReviewing');
-            if (!hasIsReviewing) {
-              await github.issues.removeLabel({
+          - name: Replace Label
+          if: env.exists != 'true'
+          uses: actions/github-script@v6
+          with:
+            script: |
+              const issueNumber = ${{ github.event.issue.number }};
+              const labels = await github.issues.listLabelsOnIssue({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: issueNumber,
-                name: 'doing'
+                issue_number: issueNumber
               });
-              await github.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-                labels: ['isReviewing']
-              });
-            }
-          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN}}
+              const hasIsReviewing = labels.data.some(label => label.name === 'isReviewing');
+              if (!hasIsReviewing) {
+                await github.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  name: 'doing'
+                });
+                await github.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  labels: ['isReviewing']
+                });
+              }
+            github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
