@@ -1,4 +1,4 @@
-name: Create Pull Request and Update Status
+name: Create Pull Request and Update Label
 
 on:
   push:
@@ -6,139 +6,64 @@ on:
       - 'feature/*'
 
 jobs:
-  create-pull-request-and-update-status:
+  create-pull-request-and-update-label:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
         with:
-          repository: Codetechify/codetechify-repo
           token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           persist-credentials: true
 
+      - name: Setup Git Identity
+        run: |
+          git config user.name 'GitHub Actions'
+          git config user.email 'actions@github.com'
+
+      - name: Slugify Issue Title
+        id: slugify
+        run: echo "slugified_title=$(echo ${{ github.event.issue.title }} | sed 's/ /_/g' | tr -cd '[[:alnum:]]._-')" >> $GITHUB_ENV
       - name: Create Pull Request
+        id: create-pr
         uses: repo-sync/pull-request@v2
         with:
-          destination_branch: 'dev'
           github_token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
-          pr_title: '${{ github.event.head_commit.message }}'
-          pr_body: 'Pull request generated from issue.'
-          # pr_reviewer: 'Consciously'
+          pr_title: 'Pull Request for Issue #${{ github.event.issue.number }}'
+          pr_body: 'Automatically generated pull request.'
+          source_branch: 'feature/${{ env.slugified_title }}'
+          destination_branch: 'main'
+        if: steps.check-pr.outputs.exists != 'true'
 
-      - name: Update Status to Pending Review
+      - name: Check if Pull Request Exists
+        id: check-pr
+        run: |
+          result=$(gh pr list --head "feature/${{ env.slugified_title }}" | wc -l)
+          echo "exists=$(if [ $result -gt 0 ]; then echo 'true'; else echo 'false'; fi)" >> $GITHUB_ENV
+
+      - name: Replace Label
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/${{ env.slugified_title }}'
         uses: actions/github-script@v6
         with:
           script: |
-            const query = `
-              query getNecessaryIds($login: String!, $name: String!, $last: Int, $labels: [String!], $number: Int!, $first: Int, $first2: Int) {
-                organization(login: $login) {
-                  repository(name: $name) {
-                    issues(last: $last, labels: $labels) {
-                      nodes {
-                        id
-                      }
-                    }
-                    projectV2(number: $number) {
-                      id
-                      fields(first: $first) {
-                        nodes {
-                          ... on ProjectV2SingleSelectField {
-                            id
-                            name
-                            options {
-                              id
-                              name
-                            }
-                          }
-                        }
-                      }
-                      items(first: $first2) {
-                        nodes {
-                          id
-                        }
-                      }
-                    }
-                  }
-                }
-              }`;
-            const variables = {
-              "login": "Codetechify",
-              "name": "codetechify-repo",
-              "last": 1,
-              "labels": ["feature"],
-              "number": 2,
-              "first": 10,
-              "first2": 10
-            };
-            const result = await github.graphql(query, variables);
-            const projectId = result.organization.repository.projectV2.id;
-            const fieldId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').id;
-            const itemId = result.organization.repository.projectV2.items.nodes[0].id;
-            const statusOptionId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').options.find(option => option.name === 'Pending to Review').id;
-            const mutation = `
-            mutation updateStatus($input: UpdateProjectV2ItemFieldValueInput!) {
-              updateProjectV2ItemFieldValue(input: $input) {
-                projectV2Item {
-                  id
-                }
-              }
-            }`;
-            const mutationVariables = {
-              "input": {
-                "projectId": projectId,
-                "fieldId": fieldId,
-                "itemId": itemId,
-                "value": {
-                  "singleSelectOptionId": statusOptionId
-                }
-              }
-            };
-            await github.graphql(mutation, mutationVariables);
-          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
-      - name: Fetch Issue Number and Update Labels
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const commitSHA = process.env.GITHUB_SHA;
-            const owner = 'Codetechify';
-            const repo = 'codetechify-repo';
-
-            // Fetch pull requests associated with the commit
-            const pulls = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-              owner,
-              repo,
-              commit_sha: commitSHA,
+            const issueNumber = ${{ github.event.issue.number }};
+            const labels = await github.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber
             });
-            const pull = pulls.data.length > 0 ? pulls.data[0] : null;
-
-            if (pull) {
-              const issueNumber = pull.number;
-
-              // Fetch issue details
-              const issue = await github.rest.issues.get({
-                owner,
-                repo,
+            const hasIsReviewing = labels.data.some(label => label.name === 'isReviewing');
+            if (!hasIsReviewing) {
+              await github.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
                 issue_number: issueNumber,
+                name: 'doing'
               });
-
-              // Update labels
-              const labels = issue.data.labels
-                .filter(label => label.name !== 'doing')
-                .map(label => label.name);
-              labels.push('isReviewing');
-
-              await github.rest.issues.update({
-                owner,
-                repo,
+              await github.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
                 issue_number: issueNumber,
-                labels,
+                labels: ['isReviewing']
               });
-
-              // Update custom number field (replace 'customFieldName' with your field's name)
-              // Your existing code for updating custom field goes here...
-            } else {
-              console.log("No pull request associated with the commit found.");
             }
-          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
-        env:
-          GITHUB_SHA: ${{ github.sha }}
+          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN}}
