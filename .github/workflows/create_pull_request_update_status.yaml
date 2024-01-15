@@ -36,7 +36,6 @@ jobs:
                     issues(last: $last, labels: $labels) {
                       nodes {
                         id
-                        number
                       }
                     }
                     projectV2(number: $number) {
@@ -96,42 +95,50 @@ jobs:
             };
             await github.graphql(mutation, mutationVariables);
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
-      - name: Update Issue Label and Number Field
+      - name: Fetch Issue Number and Update Labels
         uses: actions/github-script@v6
         with:
           script: |
-            const issueNumber = context.payload.pull_request.number; // Assuming the issue number is the same as the PR number
+            const commitSHA = process.env.GITHUB_SHA;
             const owner = 'Codetechify';
             const repo = 'codetechify-repo';
 
-            // Fetch issue details
-            const issue = await github.rest.issues.get({
+            // Fetch pull requests associated with the commit
+            const pulls = await github.rest.repos.listPullRequestsAssociatedWithCommit({
               owner,
               repo,
-              issue_number: issueNumber,
+              commit_sha: commitSHA,
             });
+            const pull = pulls.data.length > 0 ? pulls.data[0] : null;
 
-            // Remove 'doing' label and add 'isReviewing' label
-            const labels = issue.data.labels
-              .filter(label => label.name !== 'doing')
-              .map(label => label.name);
-            labels.push('isReviewing');
+            if (pull) {
+              const issueNumber = pull.number;
 
-            // Update issue labels
-            await github.rest.issues.update({
-              owner,
-              repo,
-              issue_number: issueNumber,
-              labels,
-            });
+              // Fetch issue details
+              const issue = await github.rest.issues.get({
+                owner,
+                repo,
+                issue_number: issueNumber,
+              });
 
-            // Update custom number field (replace 'customFieldName' with your field's name)
-            const customFieldId = 'your-custom-field-id'; // Replace with your field's ID
-            const customFieldValue = 123; // Replace with the value you want to set
-            await github.rest.issues.update({
-              owner,
-              repo,
-              issue_number: issueNumber,
-              custom_fields: [{ id: customFieldId, value: customFieldValue }],
-            });
+              // Update labels
+              const labels = issue.data.labels
+                .filter(label => label.name !== 'doing')
+                .map(label => label.name);
+              labels.push('isReviewing');
+
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                labels,
+              });
+
+              // Update custom number field (replace 'customFieldName' with your field's name)
+              // Your existing code for updating custom field goes here...
+            } else {
+              console.log("No pull request associated with the commit found.");
+            }
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+        env:
+          GITHUB_SHA: ${{ github.sha }}
