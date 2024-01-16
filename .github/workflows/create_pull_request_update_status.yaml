@@ -18,12 +18,11 @@ jobs:
       - name: Extract Feature Branch Name and Issue Number
         run: |
           FEATURE_BRANCH="${GITHUB_REF#refs/heads/}"
-          ISSUE_NUMBER="$(
-            echo $GITHUB_REF | grep -oP '(?<=feature/)\d+')"
-            echo "feature_branch=$FEATURE_BRANCH" >> $GITHUB_ENV
-            echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_ENV
-            echo "Feature Branch: $FEATURE_BRANCH" # Debugging
-            echo "Issue Number: $ISSUE_NUMBER" # Debugging
+          ISSUE_NUMBER=$(echo $GITHUB_REF | grep -oP '(?<=feature/)\d+')
+          echo "feature_branch=${FEATURE_BRANCH}" >> $GITHUB_ENV
+          echo "issue_number=${ISSUE_NUMBER}" >> $GITHUB_ENV
+          echo "Feature Branch: ${FEATURE_BRANCH}" # Debugging
+          echo "Issue Number: ${ISSUE_NUMBER}" # Debugging
 
       - name: Fetch Issue Title
         id: fetch-issue
