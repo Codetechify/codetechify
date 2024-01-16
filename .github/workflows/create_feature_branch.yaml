@@ -88,10 +88,15 @@ jobs:
             await github.graphql(mutation, mutationVariables);
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
 
-      - name: Create Feature Branch
+      - name: Conditional Branch Creation
         run: |
-          branchName=$(echo "${{ github.event.issue.title }}" | sed 's/ /_/g')
-          git checkout -b feature/$branchName
-          git push origin feature/$branchName
+          if [[ "$(git log -1 --pretty=%B)" =~ ^[a-zA-Z]+: ]]; then
+            echo "Creating Feature Branch"
+            branchName=$(echo "${{ github.event.issue.title }}" | sed 's/ /_/g')
+            git checkout -b feature/$branchName
+            git push origin feature/$branchName
+            else
+            echo "Branch creation skipped due to commit message format"
+            fi
         env:
           GITHUB_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
