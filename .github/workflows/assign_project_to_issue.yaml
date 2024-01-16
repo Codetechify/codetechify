@@ -1,0 +1,66 @@
+name: Issue Project Automation
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  automate-project-assignment:
+    runs-on: ubuntu-latest
+    if: github.event.label.name == 'feature'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Get Issue and Project ID
+        id: get_ids
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+          script: |
+            const query = `
+              query getIssueAndProjectId($name: String!, $owner: String!, $states: [IssueState!], $number: Int!) {
+                repository(name: $name, owner: $owner) {
+                  issues(last: 1, states: $states) {
+                    nodes {
+                      id
+                    }
+                  }
+                  projectV2(number: $number) {
+                    id
+                  }
+                }
+              }
+            `;
+            const variables = {
+              name: 'codetechify-repo',
+              owner: 'Codetechify',
+              number: 2
+            };
+            const result = await github.graphql(query, variables);
+            const issueId = result.repository.issues.nodes[0].id;
+            const projectId = result.repository.projectV2.id;
+            core.setOutput('issueId', issueId);
+            core.setOutput('projectId', projectId);
+
+      - name: Assign Project to Issue
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+          script: |
+            const issueId = '${{ steps.get_ids.outputs.issueId }}';
+            const projectId = '${{ steps.get_ids.outputs.projectId }}';
+            const mutation = `
+              mutation assignProjectToIssue($issueId: ID!, $projectId: ID!) {
+                addProjectV2ItemById(input: {projectId: $projectId, contentId: $issueId}) {
+                  item {
+                    id
+                  }
+                }
+              }
+            `;
+            const variables = {
+              issueId: issueId,
+              projectId: projectId
+            };
+            await github.graphql(mutation, variables);

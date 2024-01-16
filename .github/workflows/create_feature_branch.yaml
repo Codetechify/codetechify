@@ -1,0 +1,97 @@
+name: Update Status and Create Branch
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  update-status-and-create-branch:
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'feature') && contains(github.event.issue.labels.*.name, 'doing')
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          repository: Codetechify/codetechify-repo
+          token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+          persist-credentials: true
+
+      - name: Update Status in Project
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const query = `
+              query getNecessaryIds($login: String!, $name: String!, $last: Int, $labels: [String!], $number: Int!, $first: Int, $first2: Int) {
+                organization(login: $login) {
+                  repository(name: $name) {
+                    issues(last: $last, labels: $labels) {
+                      nodes {
+                        id
+                      }
+                    }
+                    projectV2(number: $number) {
+                      id
+                      fields(first: $first) {
+                        nodes {
+                          ... on ProjectV2SingleSelectField {
+                            id
+                            name
+                            options {
+                              id
+                              name
+                            }
+                          }
+                        }
+                      }
+                      items(first: $first2) {
+                        nodes {
+                          id
+                        }
+                      }
+                    }
+                  }
+                }
+              }`;
+            const variables = {
+              "login": "Codetechify",
+              "name": "codetechify-repo",
+              "last": 1,
+              "labels": ["feature"],
+              "number": 2,
+              "first": 10,
+              "first2": 10
+            };
+            const result = await github.graphql(query, variables);
+            const projectId = result.organization.repository.projectV2.id;
+            const fieldId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').id;
+            const itemId = result.organization.repository.projectV2.items.nodes[0].id;
+            const statusOptionId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').options.find(option => option.name === 'Doing').id;
+            const mutation = `
+            mutation updateStatus($input: UpdateProjectV2ItemFieldValueInput!) {
+              updateProjectV2ItemFieldValue(input: $input) {
+                projectV2Item {
+                  id
+                }
+              }
+            }`;
+            const mutationVariables = {
+              "input": {
+                "projectId": projectId,
+                "fieldId": fieldId,
+                "itemId": itemId,
+                "value": {
+                  "singleSelectOptionId": statusOptionId
+                }
+              }
+            };
+            await github.graphql(mutation, mutationVariables);
+          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+
+      - name: Create Feature Branch
+        run: |
+          branchName=$(echo "${{ github.event.issue.title }}" | sed 's/ /_/g')
+          git checkout -b feature/$branchName
+          git push origin feature/$branchName
+        env:
+          GITHUB_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
