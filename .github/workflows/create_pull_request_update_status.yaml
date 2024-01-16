@@ -84,24 +84,31 @@ jobs:
         with:
           script: |
             const issueNumber = ${{ steps.get-issue.outputs.result }};
-            const labelsResponse = await github.issues.listLabelsOnIssue({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issueNumber
-            });
-            const hasDoing = labelsResponse.data.some(label => label.name === 'doing');
-            if (hasDoing) {
-              await github.issues.removeLabel({
+            console.log("Issue number: ", issueNumber); // Debugging
+
+            async function updateIssueLabels() {
+              const labelsResponse = await github.issues.listLabelsOnIssue({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: issueNumber,
-                name: 'doing'
+                issue_number: issueNumber
               });
-              await github.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-                labels: ['isReviewing']
-              });
-              // Add any additional steps to update the status here if needed
+              const hasDoing = labelsResponse.data.some(label => label.name === 'doing');
+              if (hasDoing) {
+                await github.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  name: 'doing'
+                });
+                await github.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  labels: ['isReviewing']
+                });
+              }
+            }
+
+            await updateIssueLabels();
+
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
