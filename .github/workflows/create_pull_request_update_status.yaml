@@ -15,8 +15,25 @@ jobs:
           token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           persist-credentials: true
 
-      - name: Extract Feature Branch Name
-        run: echo "feature_branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+      - name: Extract Feature Branch Name and Issue Number
+        run: |
+          echo "feature_branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+          echo "issue_number=$(echo $GITHUB_REF | grep -oP '(?<=feature/)\d+')" >> $GITHUB_ENV
+
+      - name: Fetch Issue Title
+        id: fetch-issue
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issueNumber = process.env.issue_number;
+            const issueResponse = await github.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber
+            });
+            const issueTitle = issueResponse.data.title;
+            return issueTitle;
+          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
 
       - name: Check if Pull Request Exists
         id: check-pr
@@ -47,8 +64,8 @@ jobs:
         uses: repo-sync/pull-request@v2
         with:
           github_token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
-          pr_title: 'Pull Request for ${GITHUB_REF#refs/heads/}'
-          pr_body: 'Automatically generated pull request.'
+          pr_title: ${{ steps.fetch-issue.outputs.result }}
+          pr_body: 'Automatically generated pull request. Closes #$GITHUB_ENV.issue_number'
           source_branch: '${{ env.feature_branch }}'
           destination_branch: 'main'
 
@@ -57,32 +74,27 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const issueNumberRegex = /(\d+)/;
-            const branchName = "${{ env.feature_branch }}";
-            const issueNumberMatch = branchName.match(issueNumberRegex);
-            if (issueNumberMatch) {
-              const issueNumber = parseInt(issueNumberMatch[0], 10);
-              
-              const labelsResponse = await github.issues.listLabelsOnIssue({
+            const issueNumber = process.env.issue_number;
+            const labelsResponse = await github.issues.listLabelsOnIssue({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: issueNumber
+            });
+            const hasDoing = labelsResponse.data.some(label => label.name === 'doing');
+            if (hasDoing) {
+              await github.issues.removeLabel({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: issueNumber
+                issue_number: issueNumber,
+                name: 'doing'
+              });
+              await github.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                labels: ['isReviewing']
               });
 
-              const hasIsReviewing = labelsResponse.data.some(label => label.name === 'isReviewing');
-              if (!hasIsReviewing) {
-                await github.issues.removeLabel({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issueNumber,
-                  name: 'doing'
-                });
-                await github.issues.addLabels({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issueNumber,
-                  labels: ['isReviewing']
-                });
-              }
+              // Update status here if needed, e.g., via a comment or a custom field (depends on your setup)
             }
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
