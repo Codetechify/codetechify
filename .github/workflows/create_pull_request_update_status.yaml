@@ -8,13 +8,23 @@ on:
 jobs:
   create-pull-request-and-update-label:
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.message, '*:')
+    outputs:
+      commit-check: ${{ steps.commit-check.outputs.matched }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
         with:
           token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           persist-credentials: true
+
+      - name: Check Commit Message Format
+        id: commit-check
+        run: |
+          if [[ "$(git log -1 --pretty=%B)" =~ ^[a-zA-Z]+: ]]; then
+            echo "::set-output name=matched::true"
+          else
+            echo "::set-output name=matched::false"
+          fi
 
       - name: Extract Feature Branch Name and Issue Number
         run: |
