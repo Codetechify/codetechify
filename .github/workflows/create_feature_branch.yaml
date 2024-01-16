@@ -88,15 +88,15 @@ jobs:
             await github.graphql(mutation, mutationVariables);
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
 
-      - name: Conditional Branch Creation
+      - name: Check Commit Message Format
+        id: commit-check
         run: |
           if [[ "$(git log -1 --pretty=%B)" =~ ^[a-zA-Z]+: ]]; then
-            echo "Creating Feature Branch"
-            branchName=$(echo "${{ github.event.issue.title }}" | sed 's/ /_/g')
-            git checkout -b feature/$branchName
-            git push origin feature/$branchName
-            else
-            echo "Branch creation skipped due to commit message format"
-            fi
+            echo "matched=true" >> $GITHUB_ENV
+            echo "matched=true" >> $GITHUB_OUTPUT
+          else
+            echo "matched=false" >> $GITHUB_ENV
+            echo "matched=false" >> $GITHUB_OUTPUT
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}

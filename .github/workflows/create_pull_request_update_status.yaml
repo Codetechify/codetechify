@@ -19,12 +19,15 @@ jobs:
         id: commit-check
         run: |
           if [[ "$(git log -1 --pretty=%B)" =~ ^[a-zA-Z]+: ]]; then
+            echo "matched=true" >> $GITHUB_ENV
             echo "matched=true" >> $GITHUB_OUTPUT
           else
+            echo "matched=false" >> $GITHUB_ENV
             echo "matched=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Update Status in Project
+        if: env.matched == 'true'
         uses: actions/github-script@v6
         with:
           script: |
@@ -143,6 +146,7 @@ jobs:
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
 
       - name: Create Pull Request
+        if: env.matched == 'true'
         uses: repo-sync/pull-request@v2
         with:
           github_token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
@@ -152,6 +156,7 @@ jobs:
           destination_branch: 'main'
 
       - name: Replace Label and Link PR to Issue
+        if: env.matched == 'true'
         uses: actions/github-script@v6
         with:
           script: |
