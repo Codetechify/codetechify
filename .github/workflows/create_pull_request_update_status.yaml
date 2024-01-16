@@ -19,46 +19,26 @@ jobs:
         run: |
           echo "feature_branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
           echo "issue_number=$(echo $GITHUB_REF | grep -oP '(?<=feature/)\d+')" >> $GITHUB_ENV
+          echo "Feature Branch: ${{ env.feature_branch }}" # Debugging
+          echo "Issue Number: ${{ env.issue_number }}" # Debugging
 
       - name: Fetch Issue Title
         id: fetch-issue
         uses: actions/github-script@v6
         with:
           script: |
-            const issueNumber = process.env.issue_number;
+            console.log("Issue number: ", process.env.issue_number); // Debugging
+            if (!process.env.issue_number) {
+              throw new Error('Issue number is undefined');
+            }
             const issueResponse = await github.issues.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: issueNumber
+              issue_number: process.env.issue_number
             });
             const issueTitle = issueResponse.data.title;
             return issueTitle;
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
-
-      - name: Check if Pull Request Exists
-        id: check-pr
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const result = await github.graphql(`
-              query ($repo: String!, $owner: String!, $branch: String!) {
-                repository(name: $repo, owner: $owner) {
-                  pullRequests(first: 1, states: OPEN, headRefName: $branch) {
-                    nodes {
-                      id
-                    }
-                  }
-                }
-              }
-            `, {
-              repo: context.repo.repo,
-              owner: context.repo.owner,
-              branch: "${{ env.feature_branch }}"
-            });
-            const prExists = result.repository.pullRequests.nodes.length > 0;
-            core.setOutput('exists', prExists);
-          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
-
       - name: Create Pull Request
         if: steps.check-pr.outputs.exists == 'false'
         uses: repo-sync/pull-request@v2
