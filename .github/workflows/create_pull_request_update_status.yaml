@@ -24,6 +24,78 @@ jobs:
             echo "::set-output name=matched::false"
           fi
 
+          - name: Update Status in Project
+          uses: actions/github-script@v6
+          with:
+            script: |
+              const query = `
+                query getNecessaryIds($login: String!, $name: String!, $last: Int, $labels: [String!], $number: Int!, $first: Int, $first2: Int) {
+                  organization(login: $login) {
+                    repository(name: $name) {
+                      issues(last: $last, labels: $labels) {
+                        nodes {
+                          id
+                        }
+                      }
+                      projectV2(number: $number) {
+                        id
+                        fields(first: $first) {
+                          nodes {
+                            ... on ProjectV2SingleSelectField {
+                              id
+                              name
+                              options {
+                                id
+                                name
+                              }
+                            }
+                          }
+                        }
+                        items(first: $first2) {
+                          nodes {
+                            id
+                          }
+                        }
+                      }
+                    }
+                  }
+                }`;
+              const variables = {
+                "login": "Codetechify",
+                "name": "codetechify-repo",
+                "last": 1,
+                "labels": ["feature", "doing"],
+                "number": 2,
+                "first": 10,
+                "first2": 10
+              };
+              const result = await github.graphql(query, variables);
+              const projectId = result.organization.repository.projectV2.id;
+              const fieldId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').id;
+              const itemId = result.organization.repository.projectV2.items.nodes[0].id;
+              const pendingReviewOptionId = result.organization.repository.projectV2.fields.nodes.find(node => node.name === 'Status').options.find(option => option.name === 'Pending to Review').id;
+              
+              const mutation = `
+              mutation updateStatus($input: UpdateProjectV2ItemFieldValueInput!) {
+                updateProjectV2ItemFieldValue(input: $input) {
+                  projectV2Item {
+                    id
+                  }
+                }
+              }`;
+              const mutationVariables = {
+                "input": {
+                  "projectId": projectId,
+                  "fieldId": fieldId,
+                  "itemId": itemId,
+                  "value": {
+                    "singleSelectOptionId": pendingReviewOptionId
+                  }
+                }
+              };
+              await github.graphql(mutation, mutationVariables);
+            github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+
       - name: Get Last Issue Number
         id: get-issue
         uses: actions/github-script@v6
