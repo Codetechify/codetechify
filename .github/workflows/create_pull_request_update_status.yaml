@@ -58,7 +58,10 @@ jobs:
           script: |
             const issueNumber = ${{ steps.get-issue.outputs.result }};
             console.log("Issue number: ", issueNumber); // Debugging
-            const issueResponse = await github.issues.get({
+            if (!issueNumber) {
+              throw new Error('Issue number is undefined or null');
+            }
+            const issueResponse = await github.rest.issues.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issueNumber
