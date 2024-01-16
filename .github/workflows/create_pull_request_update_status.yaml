@@ -87,20 +87,20 @@ jobs:
             console.log("Issue number: ", issueNumber); // Debugging
 
             async function updateIssueLabels() {
-              const labelsResponse = await github.issues.listLabelsOnIssue({
+              const labelsResponse = await github.rest.issues.listLabelsOnIssue({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issueNumber
               });
               const hasDoing = labelsResponse.data.some(label => label.name === 'doing');
               if (hasDoing) {
-                await github.issues.removeLabel({
+                await github.rest.issues.removeLabel({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: issueNumber,
                   name: 'doing'
                 });
-                await github.issues.addLabels({
+                await github.rest.issues.addLabels({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: issueNumber,
@@ -110,5 +110,4 @@ jobs:
             }
 
             await updateIssueLabels();
-
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
