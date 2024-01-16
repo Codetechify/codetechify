@@ -8,7 +8,6 @@ on:
 jobs:
   create-pull-request-and-update-label:
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.message, '*:')
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
@@ -16,28 +15,56 @@ jobs:
           token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           persist-credentials: true
 
-      - name: Extract Feature Branch Name and Issue Number
+      - name: Check Commit Message Format
+        id: commit-check
         run: |
-          FEATURE_BRANCH="${GITHUB_REF#refs/heads/}"
-          ISSUE_NUMBER=$(echo $GITHUB_REF | grep -oP '(?<=feature/)\d+')
-          echo "feature_branch=${FEATURE_BRANCH}" >> $GITHUB_ENV
-          echo "issue_number=${ISSUE_NUMBER}" >> $GITHUB_ENV
-          echo "Feature Branch: ${FEATURE_BRANCH}" # Debugging
-          echo "Issue Number: ${ISSUE_NUMBER}" # Debugging
+          if [[ "$(git log -1 --pretty=%B)" =~ ^[a-zA-Z]+: ]]; then
+            echo "::set-output name=matched::true"
+          else
+            echo "::set-output name=matched::false"
+          fi
+
+      - name: Get Last Issue Number
+        id: get-issue
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const query = `
+              query getLastIssue($login: String!, $name: String!, $last: Int, $labels: [String!]) {
+                organization(login: $login) {
+                  repository(name: $name) {
+                    issues(last: $last, labels: $labels) {
+                      nodes {
+                        number
+                      }
+                    }
+                  }
+                }
+              }`;
+            const result = await github.graphql(query, {
+              login: "Codetechify",
+              name: "codetechify-repo",
+              last: 1,
+              labels: ["feature", "doing"]
+            });
+            const issueNumber = result.organization.repository.issues.nodes[0].number;
+            return issueNumber;
+          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
 
       - name: Fetch Issue Title
         id: fetch-issue
         uses: actions/github-script@v6
         with:
           script: |
-            console.log("Issue number: ", process.env.issue_number); // Debugging
-            if (!process.env.issue_number) {
-              throw new Error('Issue number is undefined');
+            const issueNumber = ${{ steps.get-issue.outputs.result }};
+            console.log("Issue number: ", issueNumber); // Debugging
+            if (!issueNumber) {
+              throw new Error('Issue number is undefined or null');
             }
-            const issueResponse = await github.issues.get({
+            const issueResponse = await github.rest.issues.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: process.env.issue_number
+              issue_number: issueNumber
             });
             const issueTitle = issueResponse.data.title;
             return issueTitle;
@@ -48,7 +75,7 @@ jobs:
         with:
           github_token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           pr_title: ${{ steps.fetch-issue.outputs.result }}
-          pr_body: 'Automatically generated pull request. Closes #${{ env.issue_number }}'
+          pr_body: 'Automatically generated pull request. Closes #${{ steps.get-issue.outputs.result }}'
           source_branch: ${{ env.feature_branch }}
           destination_branch: 'main'
 
@@ -56,25 +83,25 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const issueNumber = process.env.issue_number;
+            const issueNumber = ${{ steps.get-issue.outputs.result }};
             const labelsResponse = await github.issues.listLabelsOnIssue({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issueNumber
-              });
-              const hasDoing = labelsResponse.data.some(label => label.name === 'doing');
-              if (hasDoing) {
+            });
+            const hasDoing = labelsResponse.data.some(label => label.name === 'doing');
+            if (hasDoing) {
               await github.issues.removeLabel({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issueNumber,
-              name: 'doing'
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                name: 'doing'
               });
               await github.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issueNumber,
-              labels: ['isReviewing']
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                labels: ['isReviewing']
               });
-            // Add any additional steps to update the status here if needed
+              // Add any additional steps to update the status here if needed
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
