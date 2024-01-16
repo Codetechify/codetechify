@@ -24,7 +24,15 @@ jobs:
           echo "Feature Branch: ${FEATURE_BRANCH}" # Debugging
           echo "Issue Number: ${ISSUE_NUMBER}" # Debugging
 
+      - name: Count Commits in Feature Branch
+        id: count-commits
+        run: |
+          commit_count=$(git rev-list --count HEAD ^main)
+          echo "commit_count=$commit_count" >> $GITHUB_ENV
+          echo "Number of commits in the feature branch: $commit_count"
+
       - name: Fetch Issue Title
+        if: env.commit_count > 1
         id: fetch-issue
         uses: actions/github-script@v6
         with:
@@ -43,6 +51,7 @@ jobs:
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
 
       - name: Create Pull Request
+        if: env.commit_count > 1
         uses: repo-sync/pull-request@v2
         with:
           github_token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
@@ -52,6 +61,7 @@ jobs:
           destination_branch: 'main'
 
       - name: Replace Label and Link PR to Issue
+        if: env.commit_count > 1
         uses: actions/github-script@v6
         with:
           script: |
@@ -64,17 +74,17 @@ jobs:
             const hasDoing = labelsResponse.data.some(label => label.name === 'doing');
             if (hasDoing) {
               await github.issues.removeLabel({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-                name: 'doing'
-              });
-              await github.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-                labels: ['isReviewing']
-              });
-
-              // Add any additional steps to update the status here if needed
+                owner:
+                  context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  name: 'doing'
+                  });
+                  await github.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  labels: ['isReviewing']
+                  });
+                  // Add any additional steps to update the status here if needed
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
