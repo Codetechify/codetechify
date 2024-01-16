@@ -12,8 +12,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           persist-credentials: true
+
+      - name: Setup Git Identity
+        run: |
+          git config user.name 'GitHub Actions'
+          git config user.email 'actions@github.com'
 
       - name: Extract Feature Branch Name
         run: echo "feature_branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
@@ -23,66 +28,44 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const result = await github.graphql(`
-              query ($repo: String!, $owner: String!, $branch: String!) {
-                repository(name: $repo, owner: $owner) {
-                  pullRequests(first: 1, states: OPEN, headRefName: $branch) {
-                    nodes {
-                      id
-                    }
-                  }
-                }
-              }
-            `, {
+            const branchName = "${{ env.feature_branch }}";
+            const result = await github.graphql( query ($repo: String!, $owner: String!, $branch: String!) { repository(name: $repo, owner: $owner) { pullRequests(first: 1, states: OPEN, headRefName: $branch) { nodes { id } } } } , {
               repo: context.repo.repo,
               owner: context.repo.owner,
-              branch: "${{ env.feature_branch }}"
-            });
-            const prExists = result.repository.pullRequests.nodes.length > 0;
-            core.setOutput('exists', prExists);
-          github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
-
-      - name: Create Pull Request
-        if: steps.check-pr.outputs.exists == 'false'
-        uses: repo-sync/pull-request@v2
-        with:
-          github_token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
-          pr_title: 'Pull Request for ${GITHUB_REF#refs/heads/}'
-          pr_body: 'Automatically generated pull request.'
-          source_branch: '${{ env.feature_branch }}'
-          destination_branch: 'main'
-
-      - name: Replace Label and Link PR to Issue
-        if: steps.check-pr.outputs.exists == 'true'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const issueNumberRegex = /(\d+)/;
-            const branchName = "${{ env.feature_branch }}";
-            const issueNumberMatch = branchName.match(issueNumberRegex);
-            if (issueNumberMatch) {
-              const issueNumber = parseInt(issueNumberMatch[0], 10);
-              
-              const labelsResponse = await github.issues.listLabelsOnIssue({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber
-                });
-
-                const hasIsReviewing = labelsResponse.data.some(label => label.name === 'isReviewing');
-                if (!hasIsReviewing) {
-                  await github.issues.removeLabel({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: issueNumber,
-                    name: 'doing'
-                  });
-                  await github.issues.addLabels({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: issueNumber,
-                    labels: ['isReviewing']
-                  });
-                }
-              }
-            github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+              branch: branchName
+              });
+              const prExists = result.repository.pullRequests.nodes.length > 0;
+              core.setOutput('exists', prExists);
+              github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+              - name: Update Issue Labels
+              if: ${{ steps.check-pr.outputs.exists == 'false' }}
+              uses: actions/github-script@v6
+              with:
+                script: |
+                  const branchName = "${{ env.feature_branch }}";
+                  const issueNumberRegex = /(\d+)/;
+                  const issueNumberMatch = branchName.match(issueNumberRegex);
+                  if (issueNumberMatch) {
+                    const issueNumber = parseInt(issueNumberMatch[0], 10);
+                    const labelsResponse = await github.issues.listLabelsOnIssue({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: issueNumber
+                    });
+                    const hasIsReviewing = labelsResponse.data.some(label => label.name === 'isReviewing');
+                    if (!hasIsReviewing) {
+                      await github.issues.removeLabel({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: issueNumber,
+                        name: 'doing'
+                      });
+                      await github.issues.addLabels({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: issueNumber,
+                        labels: ['isReviewing']
+                      });
+                    }
+                  }
+                github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
