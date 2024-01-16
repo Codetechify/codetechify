@@ -17,10 +17,13 @@ jobs:
 
       - name: Extract Feature Branch Name and Issue Number
         run: |
-          echo "feature_branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
-          echo "issue_number=$(echo $GITHUB_REF | grep -oP '(?<=feature/)\d+')" >> $GITHUB_ENV
-          echo "Feature Branch: ${{ env.feature_branch }}" # Debugging
-          echo "Issue Number: ${{ env.issue_number }}" # Debugging
+          FEATURE_BRANCH="${GITHUB_REF#refs/heads/}"
+          ISSUE_NUMBER="$(
+            echo $GITHUB_REF | grep -oP '(?<=feature/)\d+')"
+            echo "feature_branch=$FEATURE_BRANCH" >> $GITHUB_ENV
+            echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_ENV
+            echo "Feature Branch: $FEATURE_BRANCH" # Debugging
+            echo "Issue Number: $ISSUE_NUMBER" # Debugging
 
       - name: Fetch Issue Title
         id: fetch-issue
@@ -39,26 +42,25 @@ jobs:
             const issueTitle = issueResponse.data.title;
             return issueTitle;
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
+
       - name: Create Pull Request
-        if: steps.check-pr.outputs.exists == 'false'
         uses: repo-sync/pull-request@v2
         with:
           github_token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
           pr_title: ${{ steps.fetch-issue.outputs.result }}
-          pr_body: 'Automatically generated pull request. Closes #$GITHUB_ENV.issue_number'
-          source_branch: '${{ env.feature_branch }}'
+          pr_body: 'Automatically generated pull request. Closes #${{ env.issue_number }}'
+          source_branch: ${{ env.feature_branch }}
           destination_branch: 'main'
 
       - name: Replace Label and Link PR to Issue
-        if: steps.check-pr.outputs.exists == 'true'
         uses: actions/github-script@v6
         with:
           script: |
             const issueNumber = process.env.issue_number;
             const labelsResponse = await github.issues.listLabelsOnIssue({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: issueNumber
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber
             });
             const hasDoing = labelsResponse.data.some(label => label.name === 'doing');
             if (hasDoing) {
@@ -75,6 +77,5 @@ jobs:
                 labels: ['isReviewing']
               });
 
-              // Update status here if needed, e.g., via a comment or a custom field (depends on your setup)
-            }
+              // Add any additional steps to update the status here if needed
           github-token: ${{ secrets.CODETECHIFY_ACCESS_TOKEN }}
