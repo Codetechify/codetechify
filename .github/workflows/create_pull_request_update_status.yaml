@@ -153,7 +153,7 @@ jobs:
           pr_title: ${{ steps.fetch-issue.outputs.result }}
           pr_body: 'Automatically generated pull request. Closes #${{ steps.get-issue.outputs.result }}'
           source_branch: ${{ env.feature_branch }}
-          destination_branch: 'main'
+          destination_branch: 'dev'
 
       - name: Replace Label and Link PR to Issue
         if: env.matched == 'true'
